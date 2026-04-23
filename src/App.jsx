@@ -18,9 +18,6 @@ function App() {
 
   return (
     <>
-       
-
-      
       <Routes>
         <Route path='' element={<Land />} />
         <Route path='/home' element={<Home  />} />

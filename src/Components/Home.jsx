@@ -8,7 +8,7 @@ function AiringNow() {
   const [hasNextPage, setHasNextPage] = useState(true);
 
   useEffect(() => {
-    fetch(`https://api.jikan.moe/v4/anime?status=airing&order_by=score&sort=desc&page=${currentPage}&sfw=true`)
+    fetch(`https://api.jikan.moe/v4/seasons/now?page=${currentPage}`)
       .then((res) => res.json())
       .then((data) => {
         setAnimes(data.data); 

@@ -2,22 +2,23 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import Card from "./Card";
 
-const GENRES = [
-  { name: "Action", icon: "⚔️", id: 1 },
-  { name: "Adventure", icon: "🗺️", id: 2 },
-  { name: "Comedy", icon: "😂", id: 4 },
-  { name: "Drama", icon: "🎭", id: 8 },
-  { name: "Fantasy", icon: "✨", id: 10 },
-  { name: "Sci-Fi", icon: "🚀", id: 24 },
-  { name: "Romance", icon: "💖", id: 22 },
-  { name: "Horror", icon: "👻", id: 14 },
-];
 
-const STATS = [
-  { label: "Anime Indexed", value: "25,000+", icon: "📚" },
-  { label: "Characters", value: "80,000+", icon: "👥" },
-  { label: "Currently Airing", value: "100+", icon: "📡" },
-  { label: "Community Watchlists", value: "10,000+", icon: "🔖" },
+import { LuSparkles } from "react-icons/lu";
+import { HiOutlineFire } from "react-icons/hi2";
+import { GiBroadsword, GiFloatingGhost } from "react-icons/gi";
+import { IoCompassOutline, IoRocketOutline, IoHeartOutline } from "react-icons/io5";
+import { FaRegSmile, FaTheaterMasks, FaMagic } from "react-icons/fa";
+import { HiOutlineChevronLeft, HiOutlineChevronRight } from "react-icons/hi";
+
+const GENRES = [
+  { name: "Action", icon: GiBroadsword, id: 1 },
+  { name: "Adventure", icon: IoCompassOutline, id: 2 },
+  { name: "Comedy", icon: FaRegSmile, id: 4 },
+  { name: "Drama", icon: FaTheaterMasks, id: 8 },
+  { name: "Fantasy", icon: FaMagic, id: 10 },
+  { name: "Sci-Fi", icon: IoRocketOutline, id: 24 },
+  { name: "Romance", icon: IoHeartOutline, id: 22 },
+  { name: "Horror", icon: GiFloatingGhost, id: 14 },
 ];
 
 function Land() {
@@ -61,9 +62,11 @@ function Land() {
       <div className="absolute top-[-5%] left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-purple-600/15 blur-[150px] rounded-full pointer-events-none" />
       <div className="absolute top-[25%] left-[10%] w-[500px] h-[300px] bg-amber-600/10 blur-[140px] rounded-full pointer-events-none" />
 
+      
       <main className="max-w-7xl mx-auto px-6 pt-16 pb-12 flex flex-col items-center justify-center relative z-10 w-full text-center">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-5 backdrop-blur-md">
-          <span>⚡ Discover Your Next Favorite Anime</span>
+          <LuSparkles className="text-amber-400 text-sm" />
+          <span>Discover Your Next Favorite Anime</span>
         </div>
 
         <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-tight max-w-4xl">
@@ -94,10 +97,11 @@ function Land() {
         </div>
       </main>
 
+      
       <section className="max-w-7xl mx-auto px-6 py-10 w-full relative z-10">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
-            <span className="text-amber-500 text-xl">🔥</span>
+            <HiOutlineFire className="text-amber-500 text-2xl" />
             <h2 className="text-xl sm:text-2xl font-black tracking-tight text-neutral-100">
               Trending Now
             </h2>
@@ -109,38 +113,14 @@ function Land() {
               className="p-2 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700 transition"
               aria-label="Scroll left"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
+              <HiOutlineChevronLeft className="w-5 h-5" />
             </button>
             <button
               onClick={() => handleScroll("right")}
               className="p-2 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-700 transition"
               aria-label="Scroll right"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
+              <HiOutlineChevronRight className="w-5 h-5" />
             </button>
           </div>
         </div>
@@ -174,6 +154,7 @@ function Land() {
         </div>
       </section>
 
+      
       <section className="max-w-7xl mx-auto px-6 py-10 w-full relative z-10">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl sm:text-2xl font-black tracking-tight text-neutral-100">
@@ -183,32 +164,34 @@ function Land() {
             to="/search"
             className="text-xs font-semibold text-amber-400 hover:text-amber-300 transition"
           >
-            View All →
+            View All &rarr;
           </NavLink>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-3">
-          {GENRES.map((g) => (
-            <button
-              key={g.id}
-              onClick={() =>
-                navigate(
-                  `/search?genre=${encodeURIComponent(g.name.toLowerCase())}`,
-                )
-              }
-              className="flex flex-col items-center justify-center p-4 rounded-xl bg-neutral-900/70 border border-neutral-800/80 hover:border-amber-500/40 hover:bg-neutral-800/60 hover:-translate-y-1 transition duration-200 group backdrop-blur-sm"
-            >
-              <span className="text-2xl mb-1.5 group-hover:scale-110 transition-transform">
-                {g.icon}
-              </span>
-              <span className="text-xs font-semibold text-neutral-300 group-hover:text-amber-400 transition-colors">
-                {g.name}
-              </span>
-            </button>
-          ))}
+          {GENRES.map((g) => {
+            const IconComponent = g.icon;
+            return (
+              <button
+                key={g.id}
+                onClick={() =>
+                  navigate(
+                    `/search?genre=${encodeURIComponent(g.name.toLowerCase())}`
+                  )
+                }
+                className="flex flex-col items-center justify-center p-4 rounded-xl bg-neutral-900/70 border border-neutral-800/80 hover:border-amber-500/40 hover:bg-neutral-800/60 hover:-translate-y-1 transition duration-200 group backdrop-blur-sm"
+              >
+                <IconComponent className="text-2xl mb-2 text-neutral-400 group-hover:text-amber-400 group-hover:scale-110 transition-all" />
+                <span className="text-xs font-semibold text-neutral-300 group-hover:text-amber-400 transition-colors">
+                  {g.name}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 
+      
       <footer className="w-full border-t border-neutral-800/80 bg-neutral-950 py-12 mt-16 text-neutral-400 text-xs relative z-10">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="space-y-1 text-center md:text-left">
@@ -216,8 +199,7 @@ function Land() {
               AnimeVerse
             </span>
             <p className="text-neutral-500 text-xs">
-              Your comprehensive platform for anime discovery, tracking, and
-              analytics.
+              Your comprehensive platform for anime discovery, tracking, and analytics.
             </p>
           </div>
 

@@ -2,6 +2,13 @@ import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { CiBookmark } from "react-icons/ci";
 import { GoBookmarkFill } from "react-icons/go";
+import { FaStar } from "react-icons/fa";
+import {
+  HiOutlineUsers,
+  HiOutlineVideoCamera,
+  HiOutlineExclamationTriangle,
+  HiCheck,
+} from "react-icons/hi2";
 
 function Anime() {
   const { id } = useParams();
@@ -172,7 +179,7 @@ function Anime() {
     return (
       <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center px-4 text-center">
         <div className="w-16 h-16 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-red-400 mb-4 text-2xl">
-          ⚠️
+          <HiOutlineExclamationTriangle className="w-8 h-8" />
         </div>
         <h2 className="text-xl font-bold text-neutral-200">{error || "Anime Not Found"}</h2>
         <p className="text-neutral-500 text-sm mt-1 max-w-sm">
@@ -206,12 +213,15 @@ function Anime() {
 
   return (
     <div id="anime" className="min-h-screen bg-neutral-950 text-white relative overflow-hidden pb-20">
+      {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-amber-500 text-neutral-950 font-bold px-4 py-2.5 rounded-xl shadow-2xl animate-fade-in text-xs flex items-center gap-2">
-          <span>✓</span> {toastMessage}
+          <HiCheck className="w-4 h-4 stroke-[3]" />
+          <span>{toastMessage}</span>
         </div>
       )}
 
+      {/* Blurred Backdrop Poster Banner */}
       <div className="absolute top-0 left-0 right-0 h-[480px] overflow-hidden opacity-25 pointer-events-none">
         <img
           src={poster}
@@ -222,14 +232,16 @@ function Anime() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-10 relative z-10">
-        
+        {/* Navigation Breadcrumb */}
         <div className="flex items-center gap-2 text-xs font-medium text-neutral-400 mb-6">
           <Link to="/home" className="hover:text-amber-400 transition">Home</Link>
           <span>/</span>
           <span className="text-neutral-200 truncate max-w-xs">{anime.title}</span>
         </div>
 
+        {/* Hero Section */}
         <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
+          {/* Left Poster & Bookmark Action */}
           <div className="shrink-0 relative group">
             <div className="w-[220px] sm:w-[260px] md:w-[280px] aspect-[2/3] rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-2xl">
               <img
@@ -261,7 +273,7 @@ function Anime() {
             </button>
           </div>
 
-          
+          {/* Right Anime Information */}
           <div className="flex-1 text-center md:text-left">
             {anime.title_japanese && (
               <p className="text-xs font-semibold text-neutral-500 tracking-wider mb-1">
@@ -269,16 +281,15 @@ function Anime() {
               </p>
             )}
 
-            
             <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-red-500">
               {anime.title}
             </h1>
 
-            
+            {/* Badges */}
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 mt-4">
               {anime.score && anime.score !== "N/A" && (
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-xs">
-                  <span>⭐</span>
+                  <FaStar className="text-amber-400 text-xs" />
                   <span>{anime.score}</span>
                 </div>
               )}
@@ -302,7 +313,7 @@ function Anime() {
               )}
             </div>
 
-            
+            {/* Synopsis */}
             <div className="mt-6">
               <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-2">
                 Overview
@@ -321,7 +332,7 @@ function Anime() {
               )}
             </div>
 
-            
+            {/* Genre Tags */}
             {anime.genres && anime.genres.length > 0 && (
               <div className="mt-6">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-2.5">
@@ -342,7 +353,7 @@ function Anime() {
           </div>
         </div>
 
-        
+        {/* Information Grid */}
         <div className="mt-12 p-6 sm:p-8 rounded-2xl bg-neutral-900/40 border border-neutral-800/80 backdrop-blur-xl">
           <h2 className="text-sm font-bold uppercase tracking-widest text-neutral-400 mb-6">
             Information
@@ -368,10 +379,11 @@ function Anime() {
           </div>
         </div>
 
-        
+        {/* Characters Section */}
         <div className="mt-12">
           <h2 className="text-xl sm:text-2xl font-black tracking-tight text-neutral-100 mb-6 flex items-center gap-2">
-            <span>👥</span> Main Characters
+            <HiOutlineUsers className="text-amber-400 text-2xl" />
+            <span>Main Characters</span>
           </h2>
 
           {characters.length > 0 ? (
@@ -404,10 +416,11 @@ function Anime() {
           )}
         </div>
 
-       
+        {/* Trailer Section */}
         <div className="mt-12">
           <h2 className="text-xl sm:text-2xl font-black tracking-tight text-neutral-100 mb-6 flex items-center gap-2">
-            <span>🎬</span> Official Trailer
+            <HiOutlineVideoCamera className="text-amber-400 text-2xl" />
+            <span>Official Trailer</span>
           </h2>
 
           {trailerUrl ? (
@@ -426,7 +439,6 @@ function Anime() {
             </div>
           )}
         </div>
-
       </div>
     </div>
   );

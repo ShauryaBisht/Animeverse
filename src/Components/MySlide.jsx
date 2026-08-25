@@ -1,25 +1,39 @@
+import React from "react";
 import Slider from "react-slick";
 
-const MySlider = ({img1,img2,img3,img4,img5}) => {
+function MySlider({ img1, img2, img3, img4, img5 }) {
   const settings = {
-    dots: false,
+    dots: true,
     infinite: true,
-    speed: 400,
+    speed: 600,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    autoplay: true,
+    autoplaySpeed: 3000,
     arrows: false,
-    autoplay: true,         // Enable automatic sliding
-    autoplaySpeed: 4000,    // Slide changes every 3 seconds
     pauseOnHover: true,
   };
 
+  const images = [img1, img2, img3, img4, img5].filter(Boolean);
+
   return (
-    <Slider {...settings} className="w-[200px] h-[50px] m-[6%] mb-[80%]">
-      <div><img src={img1} alt="Slide 1" className="h-[300px] w-[200px]" /></div>
-      <div><img src={img2} alt="Slide 2" className="h-[300px] w-[200px]"  /></div>
-      <div><img src={img3} alt="Slide 3" className="h-[300px] w-[200px]" /></div>
-      <div><img src={img4} alt="Slide 3" className="h-[300px] w-[200px]" /></div>
-      <div><img src={img5} alt="Slide 3" className="h-[300px] w-[200px]" /></div>
-    </Slider>
+    <div className="w-full max-w-[280px] sm:max-w-[320px] mx-auto overflow-hidden">
+      <Slider {...settings}>
+        {images.map((img, idx) => (
+          <div key={idx} className="outline-none px-1">
+            <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-neutral-950 shadow-inner">
+              <img
+                src={img}
+                alt={`Featured anime ${idx + 1}`}
+                className="h-full w-full object-cover rounded-xl transition duration-500 hover:scale-105"
+              />
+              <div className="absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" />
+            </div>
+          </div>
+        ))}
+      </Slider>
+    </div>
   );
-};
+}
 
 export default MySlider;

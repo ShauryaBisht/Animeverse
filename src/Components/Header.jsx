@@ -5,6 +5,7 @@ function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const navLinks = [
+    {name:"Home",path:"/"},
     { name: "Airing", path: "/airing" },
     { name: "Search", path: "/search" },
     { name: "Top Rated", path: "/top" },

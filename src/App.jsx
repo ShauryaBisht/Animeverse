@@ -21,7 +21,7 @@ function App() {
       <Routes>
         <Route path='' element={<Land />} />
         <Route path='/airing' element={<AiringNow />} />
-        <Route path="/title/:id" element={<Anime />} />
+        <Route path="/anime/:id" element={<Anime />} />
         <Route path='/top' element={<Top />} />
         <Route path='/watchlist' element={<Watchlist />} />
         <Route path='/search' element={<Search />} />

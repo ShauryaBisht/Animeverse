@@ -1,25 +1,34 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import Card from "./Card";
 
 function Search() {
-  const [query, setQuery] = useState("");
-  const [activeQuery, setActiveQuery] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const genreParam = searchParams.get("genre") || "";
+  const queryParam = searchParams.get("q") || "";
+
+  const [query, setQuery] = useState(queryParam);
+  const [activeSearch, setActiveSearch] = useState({
+    term: queryParam || genreParam,
+    isGenre: Boolean(genreParam),
+  });
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
 
-  const fetchSearchData = async (searchTerm, page = 1) => {
-    if (!searchTerm || !searchTerm.trim()) return;
+  const fetchSearchData = async (term, isGenre, page = 1) => {
+    if (!term || !term.trim()) return;
     setLoading(true);
 
     const limit = 20;
+    const filterParam = isGenre
+      ? `filter[categories]=${encodeURIComponent(term.toLowerCase().trim())}`
+      : `filter[text]=${encodeURIComponent(term.trim())}`;
 
     try {
       const res = await fetch(
-        `https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(
-          searchTerm.trim()
-        )}&page[size]=${limit}&page[number]=${page}`
+        `https://kitsu.io/api/edge/anime?${filterParam}&page[size]=${limit}&page[number]=${page}`
       );
 
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
@@ -54,17 +63,32 @@ function Search() {
   };
 
   useEffect(() => {
-    if (activeQuery) {
-      fetchSearchData(activeQuery, currentPage);
+    if (genreParam) {
+      setQuery(""); 
+      setActiveSearch({ term: genreParam, isGenre: true });
+      setCurrentPage(1);
+      fetchSearchData(genreParam, true, 1);
+    } else if (queryParam) {
+      setQuery(queryParam);
+      setActiveSearch({ term: queryParam, isGenre: false });
+      setCurrentPage(1);
+      fetchSearchData(queryParam, false, 1);
+    }
+  }, [genreParam, queryParam]);
+
+  useEffect(() => {
+    if (activeSearch.term) {
+      fetchSearchData(activeSearch.term, activeSearch.isGenre, currentPage);
     }
   }, [currentPage]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     if (!query.trim()) return;
-    setActiveQuery(query.trim());
+    setSearchParams({ q: query.trim() });
+    setActiveSearch({ term: query.trim(), isGenre: false });
     setCurrentPage(1);
-    fetchSearchData(query.trim(), 1);
+    fetchSearchData(query.trim(), false, 1);
   };
 
   return (
@@ -113,10 +137,11 @@ function Search() {
           </form>
         </div>
 
-        {activeQuery && (
+        {activeSearch.term && (
           <div className="flex items-center justify-between border-b border-neutral-800 pb-3 mb-8">
             <p className="text-sm text-neutral-300">
-              Results for <span className="text-amber-400 font-semibold">"{activeQuery}"</span>
+              {activeSearch.isGenre ? "Browsing Category: " : "Search Results for: "}
+              <span className="text-amber-400 font-semibold capitalize">"{activeSearch.term}"</span>
             </p>
             <span className="text-xs font-semibold px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full">
               Page {currentPage}
@@ -146,10 +171,10 @@ function Search() {
               />
             ))}
           </div>
-        ) : activeQuery ? (
+        ) : activeSearch.term ? (
           <div className="py-20 text-center text-neutral-400">
-            <p className="text-lg font-medium">No results found for "{activeQuery}"</p>
-            <p className="text-xs text-neutral-500 mt-1">Try checking for typos or searching another title.</p>
+            <p className="text-lg font-medium">No results found for "{activeSearch.term}"</p>
+            <p className="text-xs text-neutral-500 mt-1">Try another search term or check back later.</p>
           </div>
         ) : (
           <div className="py-24 text-center text-neutral-600">
@@ -166,11 +191,11 @@ function Search() {
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               />
             </svg>
-            <p className="text-sm font-medium">Type an anime title above and press Search</p>
+            <p className="text-sm font-medium">Type a title above or browse by category</p>
           </div>
         )}
 
-        {activeQuery && results.length > 0 && (
+        {activeSearch.term && results.length > 0 && (
           <div className="flex justify-center items-center gap-4 mt-12 mb-6">
             <button
               className="px-5 py-2.5 rounded-xl border border-neutral-800 bg-neutral-900 text-sm font-semibold text-neutral-300 hover:bg-neutral-800 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition"
@@ -192,7 +217,7 @@ function Search() {
                 setCurrentPage((prev) => prev + 1);
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-sm font-bold text-neutral-950 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-md shadow-amber-500/10"
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-neutral-950 font-bold text-sm shadow-md shadow-amber-500/10 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
               disabled={!hasNextPage || loading}
             >
               Next

@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
+import { CiBookmark } from "react-icons/ci";
+import { GoBookmarkFill } from "react-icons/go";
 
 function Anime() {
   const { id } = useParams();
@@ -8,6 +10,8 @@ function Anime() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -20,15 +24,13 @@ function Anime() {
         let data = null;
         let charList = [];
 
-       
         try {
           const jikanRes = await fetch(`https://api.jikan.moe/v4/anime/${id}`);
           if (jikanRes.ok) {
             const jikanJson = await jikanRes.json();
             data = jikanJson.data;
 
-            
-            await new Promise((resolve) => setTimeout(resolve, 800));
+            await new Promise((resolve) => setTimeout(resolve, 500));
 
             const charRes = await fetch(`https://api.jikan.moe/v4/anime/${id}/characters`);
             if (charRes.ok) {
@@ -39,25 +41,30 @@ function Anime() {
                   id: c.character?.mal_id,
                   name: c.character?.name,
                   image: c.character?.images?.jpg?.image_url,
+                  role: c.role,
                 }));
             }
           }
         } catch (jikanErr) {
-          console.warn("Jikan failed or timed out, attempting Kitsu fallback...", jikanErr);
+          console.warn("Jikan fallback to Kitsu...", jikanErr);
         }
 
-        
         if (!data) {
-          const kitsuRes = await fetch(`https://kitsu.io/api/edge/anime/${id}`);
-          if (!kitsuRes.ok) {
-            throw new Error("Unable to retrieve anime details from both Jikan and Kitsu.");
-          }
+          const kitsuRes = await fetch(
+            `https://kitsu.io/api/edge/anime/${id}?include=categories,producers`
+          );
+          if (!kitsuRes.ok) throw new Error("Unable to retrieve anime details.");
 
           const kitsuJson = await kitsuRes.json();
           const attr = kitsuJson.data.attributes;
           const youtubeId = attr.youtubeVideoId;
 
+          const includedCats = (kitsuJson.included || [])
+            .filter((item) => item.type === "categories")
+            .map((item) => ({ name: item.attributes.title }));
+
           data = {
+            mal_id: id,
             title: attr.canonicalTitle || attr.titles?.en || "Unknown Title",
             synopsis: attr.synopsis || "No synopsis available.",
             images: {
@@ -71,7 +78,7 @@ function Anime() {
             episodes: attr.episodeCount || "Unknown",
             score: attr.averageRating ? (attr.averageRating / 10).toFixed(2) : "N/A",
             aired: { string: attr.startDate || "N/A" },
-            genres: [],
+            genres: includedCats,
             producers: [],
             title_japanese: attr.titles?.ja_jp || "N/A",
             trailer: {
@@ -79,7 +86,6 @@ function Anime() {
             },
           };
 
-          
           try {
             const kitsuCharRes = await fetch(
               `https://kitsu.io/api/edge/anime/${id}/characters?include=character&page[limit]=10`
@@ -92,6 +98,7 @@ function Anime() {
                 id: c.id,
                 name: c.attributes?.canonicalName || c.attributes?.names?.en || "Unknown",
                 image: c.attributes?.image?.original || c.attributes?.image?.medium || "",
+                role: "Main",
               }));
             }
           } catch (charErr) {
@@ -102,149 +109,324 @@ function Anime() {
         if (isMounted) {
           setAnime(data);
           setCharacters(charList);
+
+          const savedBookmarks = JSON.parse(localStorage.getItem("bookmarks")) || [];
+          const exists = savedBookmarks.some((b) => (b.id ? b.id == id : b.title === data.title));
+          setIsBookmarked(exists);
         }
       } catch (err) {
         console.error("Fetch error:", err);
-        if (isMounted) {
-          setError(err.message || "Failed to load anime details.");
-        }
+        if (isMounted) setError(err.message || "Failed to load anime details.");
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     }
 
-    if (id) {
-      fetchData();
-    }
+    if (id) fetchData();
 
     return () => {
       isMounted = false;
     };
   }, [id]);
 
+  const toggleBookmark = () => {
+    if (!anime) return;
+    let savedBookmarks = JSON.parse(localStorage.getItem("bookmarks")) || [];
+
+    if (!isBookmarked) {
+      savedBookmarks.push({
+        id: id || anime.mal_id,
+        title: anime.title,
+        year: anime.status,
+        poster: anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url,
+        type: anime.type,
+      });
+      localStorage.setItem("bookmarks", JSON.stringify(savedBookmarks));
+      setIsBookmarked(true);
+      showToast("Added to Watchlist");
+    } else {
+      savedBookmarks = savedBookmarks.filter((b) => (b.id ? b.id != id : b.title !== anime.title));
+      localStorage.setItem("bookmarks", JSON.stringify(savedBookmarks));
+      setIsBookmarked(false);
+      showToast("Removed from Watchlist");
+    }
+  };
+
+  const showToast = (msg) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(""), 2000);
+  };
+
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center text-white text-2xl">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <span>Loading Anime Details...</span>
-        </div>
+      <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center">
+        <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mb-4" />
+        <p className="text-neutral-400 font-medium text-sm animate-pulse">
+          Fetching Anime Details...
+        </p>
       </div>
     );
   }
 
   if (error || !anime) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center text-white gap-4 px-4 text-center">
-        <p className="text-xl md:text-2xl text-red-400 max-w-md">{error || "Anime not found."}</p>
-        <div className="flex gap-4">
+      <div className="min-h-screen bg-neutral-950 text-white flex flex-col items-center justify-center px-4 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-red-400 mb-4 text-2xl">
+          ⚠️
+        </div>
+        <h2 className="text-xl font-bold text-neutral-200">{error || "Anime Not Found"}</h2>
+        <p className="text-neutral-500 text-sm mt-1 max-w-sm">
+          We couldn't fetch details for this anime ID. It may have been removed or is temporarily unavailable.
+        </p>
+        <div className="flex gap-3 mt-6">
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 transition"
+            className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-neutral-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/10 hover:opacity-95 transition"
           >
             Try Again
           </button>
-          <button
-            onClick={() => window.history.back()}
-            className="px-4 py-2 bg-neutral-800 rounded hover:bg-neutral-700 transition"
+          <Link
+            to="/home"
+            className="px-5 py-2.5 bg-neutral-900 border border-neutral-800 text-neutral-300 font-semibold text-xs rounded-xl hover:bg-neutral-800 transition"
           >
-            Go Back
-          </button>
+            Back to Home
+          </Link>
         </div>
       </div>
     );
   }
 
-  
   const trailerUrl =
     anime.trailer?.embed_url ||
     (anime.trailer?.youtube_id
       ? `https://www.youtube.com/embed/${anime.trailer.youtube_id}`
       : null);
 
+  const poster = anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url;
+
   return (
-    <div id="anime" className="min-h-screen bg-black text-white pb-20">
-      <h1 className="font-bold md:text-[50px] text-center pt-[3%] text-[32px] md:text-[40px] px-4">
-        {anime.title}
-      </h1>
-
-      <div className="flex flex-col md:flex-row md:ml-[4%] mt-[4%] px-4 gap-6 items-center md:items-start">
-        <img
-          src={anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url}
-          alt={anime.title}
-          className="md:w-[280px] md:h-[400px] w-full max-w-[300px] rounded-lg shadow-lg object-cover"
-        />
-
-        <div className="flex-1">
-          <p className={`${expanded ? "" : "line-clamp-4"} md:line-clamp-none md:text-[18px] leading-relaxed text-gray-300`}>
-            {anime.synopsis}
-          </p>
-
-          {anime.synopsis && anime.synopsis.length > 300 && (
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="text-blue-400 mt-2 font-semibold md:hidden"
-            >
-              {expanded ? "Read less" : "Read more"}
-            </button>
-          )}
+    <div id="anime" className="min-h-screen bg-neutral-950 text-white relative overflow-hidden pb-20">
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-amber-500 text-neutral-950 font-bold px-4 py-2.5 rounded-xl shadow-2xl animate-fade-in text-xs flex items-center gap-2">
+          <span>✓</span> {toastMessage}
         </div>
+      )}
+
+      <div className="absolute top-0 left-0 right-0 h-[480px] overflow-hidden opacity-25 pointer-events-none">
+        <img
+          src={poster}
+          alt={anime.title}
+          className="w-full h-full object-cover blur-3xl scale-125"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-neutral-950/80 to-neutral-950" />
       </div>
 
-      <div className="bg-[#1a1a1a] mx-[4%] mt-10 rounded-xl p-6 md:p-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-gray-300 mb-10">
-          <p><span className="font-bold text-white">Japanese:</span> {anime.title_japanese || "N/A"}</p>
-          <p><span className="font-bold text-white">Type:</span> {anime.type || "N/A"}</p>
-          <p><span className="font-bold text-white">Status:</span> {anime.status || "N/A"}</p>
-          <p><span className="font-bold text-white">Episodes:</span> {anime.episodes ?? "Unknown"}</p>
-          <p><span className="font-bold text-white">Score:</span> ⭐ {anime.score ?? "N/A"}</p>
-          <p><span className="font-bold text-white">Genre:</span> {anime.genres?.length ? anime.genres.map((g) => g.name).join(", ") : "N/A"}</p>
-          <p><span className="font-bold text-white">Producer:</span> {anime.producers?.[0]?.name || "N/A"}</p>
-          <p><span className="font-bold text-white">Aired:</span> {anime.aired?.string || "N/A"}</p>
+      <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-10 relative z-10">
+        
+        <div className="flex items-center gap-2 text-xs font-medium text-neutral-400 mb-6">
+          <Link to="/home" className="hover:text-amber-400 transition">Home</Link>
+          <span>/</span>
+          <span className="text-neutral-200 truncate max-w-xs">{anime.title}</span>
         </div>
 
-        {/* Character List */}
-        <h2 className="text-3xl font-bold mb-6 border-b border-gray-700 pb-2">Main Characters</h2>
-        <div className="flex flex-wrap gap-6 justify-center md:justify-start">
-          {characters.length > 0 ? (
-            characters.map((char) => (
-              <div
-                key={char.id || char.name}
-                className="flex items-center bg-[#252525] w-[300px] rounded-lg p-3 hover:bg-gray-800 transition-colors"
-              >
-                <img
-                  src={char.image || "https://via.placeholder.com/60"}
-                  alt={char.name}
-                  className="rounded-full h-[60px] w-[60px] object-cover border-2 border-blue-500"
-                />
-                <p className="ml-4 font-medium text-sm lg:text-base">{char.name}</p>
+        <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
+          <div className="shrink-0 relative group">
+            <div className="w-[220px] sm:w-[260px] md:w-[280px] aspect-[2/3] rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-2xl">
+              <img
+                src={poster}
+                alt={anime.title}
+                className="w-full h-full object-cover transition duration-500 group-hover:scale-105"
+              />
+            </div>
+
+            <button
+              onClick={toggleBookmark}
+              className={`w-full mt-3.5 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-xs transition active:scale-95 shadow-lg ${
+                isBookmarked
+                  ? "bg-amber-500/15 border border-amber-500/40 text-amber-400 hover:bg-amber-500/25"
+                  : "bg-gradient-to-r from-amber-500 to-orange-600 text-neutral-950 hover:opacity-95 shadow-amber-500/10"
+              }`}
+            >
+              {isBookmarked ? (
+                <>
+                  <GoBookmarkFill size={16} />
+                  <span>In Watchlist</span>
+                </>
+              ) : (
+                <>
+                  <CiBookmark size={16} />
+                  <span>Add to Watchlist</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          
+          <div className="flex-1 text-center md:text-left">
+            {anime.title_japanese && (
+              <p className="text-xs font-semibold text-neutral-500 tracking-wider mb-1">
+                {anime.title_japanese}
+              </p>
+            )}
+
+            
+            <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-red-500">
+              {anime.title}
+            </h1>
+
+            
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 mt-4">
+              {anime.score && anime.score !== "N/A" && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-xs">
+                  <span>⭐</span>
+                  <span>{anime.score}</span>
+                </div>
+              )}
+
+              {anime.type && (
+                <span className="px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-300 font-semibold text-xs uppercase tracking-wider">
+                  {anime.type}
+                </span>
+              )}
+
+              {anime.status && (
+                <span className="px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-300 font-semibold text-xs capitalize">
+                  {anime.status}
+                </span>
+              )}
+
+              {anime.episodes && (
+                <span className="px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-300 font-semibold text-xs">
+                  {anime.episodes} {anime.episodes === 1 ? "Ep" : "Eps"}
+                </span>
+              )}
+            </div>
+
+            
+            <div className="mt-6">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-2">
+                Overview
+              </h3>
+              <p className={`text-neutral-300 text-sm md:text-base leading-relaxed ${expanded ? "" : "line-clamp-4 md:line-clamp-6"}`}>
+                {anime.synopsis}
+              </p>
+
+              {anime.synopsis && anime.synopsis.length > 280 && (
+                <button
+                  onClick={() => setExpanded(!expanded)}
+                  className="text-amber-400 hover:text-amber-300 text-xs font-semibold mt-2 transition inline-block"
+                >
+                  {expanded ? "Show Less ↑" : "Read More ↓"}
+                </button>
+              )}
+            </div>
+
+            
+            {anime.genres && anime.genres.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-2.5">
+                  Genres
+                </h3>
+                <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+                  {anime.genres.map((g, idx) => (
+                    <span
+                      key={idx}
+                      className="px-3 py-1 bg-neutral-900/80 border border-neutral-800 text-neutral-300 text-xs font-medium rounded-lg"
+                    >
+                      {g.name}
+                    </span>
+                  ))}
+                </div>
               </div>
-            ))
-          ) : (
-            <p className="text-gray-500 italic">No main characters listed or available.</p>
-          )}
+            )}
+          </div>
         </div>
 
-        {/* Trailer Section */}
+        
+        <div className="mt-12 p-6 sm:p-8 rounded-2xl bg-neutral-900/40 border border-neutral-800/80 backdrop-blur-xl">
+          <h2 className="text-sm font-bold uppercase tracking-widest text-neutral-400 mb-6">
+            Information
+          </h2>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 text-xs">
+            <div>
+              <p className="text-neutral-500 uppercase tracking-wider mb-1">Japanese Title</p>
+              <p className="font-semibold text-neutral-200">{anime.title_japanese || "N/A"}</p>
+            </div>
+            <div>
+              <p className="text-neutral-500 uppercase tracking-wider mb-1">Aired Date</p>
+              <p className="font-semibold text-neutral-200">{anime.aired?.string || "N/A"}</p>
+            </div>
+            <div>
+              <p className="text-neutral-500 uppercase tracking-wider mb-1">Studio / Producer</p>
+              <p className="font-semibold text-neutral-200">{anime.producers?.[0]?.name || "N/A"}</p>
+            </div>
+            <div>
+              <p className="text-neutral-500 uppercase tracking-wider mb-1">Status</p>
+              <p className="font-semibold text-neutral-200 capitalize">{anime.status || "N/A"}</p>
+            </div>
+          </div>
+        </div>
+
+        
         <div className="mt-12">
-          <h2 className="text-3xl font-bold mb-6 border-b border-gray-700 pb-2">Trailer</h2>
-          {trailerUrl ? (
-            <div className="relative pt-[56.25%] w-full max-w-4xl mx-auto">
-              <iframe
-                src={trailerUrl}
-                title={anime.title}
-                frameBorder="0"
-                allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="absolute top-0 left-0 w-full h-full rounded-lg shadow-lg"
-              ></iframe>
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-neutral-100 mb-6 flex items-center gap-2">
+            <span>👥</span> Main Characters
+          </h2>
+
+          {characters.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {characters.map((char) => (
+                <div
+                  key={char.id || char.name}
+                  className="flex items-center gap-3.5 p-3 rounded-xl bg-neutral-900/50 border border-neutral-800/80 hover:border-neutral-700 hover:bg-neutral-800/50 transition duration-200 group"
+                >
+                  <img
+                    src={char.image || "https://via.placeholder.com/80"}
+                    alt={char.name}
+                    className="w-12 h-12 rounded-full object-cover border border-amber-500/30 group-hover:scale-105 transition duration-200 shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-xs sm:text-sm font-bold text-neutral-200 truncate group-hover:text-amber-400 transition-colors">
+                      {char.name}
+                    </p>
+                    <p className="text-[11px] text-neutral-500 uppercase font-medium mt-0.5">
+                      {char.role || "Main"}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : (
-            <p className="text-gray-500 italic">No official trailer available for this anime.</p>
+            <div className="p-8 rounded-xl bg-neutral-900/30 border border-neutral-800/60 text-center text-neutral-500 text-xs">
+              No character information available for this title.
+            </div>
           )}
         </div>
+
+       
+        <div className="mt-12">
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-neutral-100 mb-6 flex items-center gap-2">
+            <span>🎬</span> Official Trailer
+          </h2>
+
+          {trailerUrl ? (
+            <div className="relative aspect-video w-full max-w-4xl mx-auto rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-2xl">
+              <iframe
+                src={trailerUrl}
+                title={`${anime.title} Trailer`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 w-full h-full"
+              />
+            </div>
+          ) : (
+            <div className="p-8 rounded-xl bg-neutral-900/30 border border-neutral-800/60 text-center text-neutral-500 text-xs">
+              No official promotional video available.
+            </div>
+          )}
+        </div>
+
       </div>
     </div>
   );

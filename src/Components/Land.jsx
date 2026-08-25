@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import Card from "./Card";
 
-
-import { LuSparkles } from "react-icons/lu";
 import { HiOutlineFire } from "react-icons/hi2";
 import { GiBroadsword, GiFloatingGhost } from "react-icons/gi";
 import { IoCompassOutline, IoRocketOutline, IoHeartOutline } from "react-icons/io5";
@@ -59,21 +57,10 @@ function Land() {
       id="land"
       className="min-h-screen bg-neutral-950 text-white relative overflow-hidden flex flex-col justify-between"
     >
-      <div className="absolute top-[-5%] left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-purple-600/15 blur-[150px] rounded-full pointer-events-none" />
-      <div className="absolute top-[25%] left-[10%] w-[500px] h-[300px] bg-amber-600/10 blur-[140px] rounded-full pointer-events-none" />
-
       
       <main className="max-w-7xl mx-auto px-6 pt-16 pb-12 flex flex-col items-center justify-center relative z-10 w-full text-center">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400 text-xs font-semibold uppercase tracking-wider mb-5 backdrop-blur-md">
-          <LuSparkles className="text-amber-400 text-sm" />
-          <span>Discover Your Next Favorite Anime</span>
-        </div>
-
-        <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-tight max-w-4xl">
-          Welcome to{" "}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-red-500">
-            AnimeVerse
-          </span>
+        <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-tight max-w-4xl text-white">
+          Welcome to <span className="text-amber-500">AnimeVerse</span>
         </h1>
 
         <p className="text-neutral-400 text-sm sm:text-base md:text-lg mt-4 max-w-2xl leading-relaxed">
@@ -84,13 +71,13 @@ function Land() {
         <div className="flex flex-wrap items-center justify-center gap-4 mt-8">
           <NavLink
             to="/home"
-            className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-neutral-950 font-bold text-sm shadow-lg shadow-amber-500/20 hover:opacity-95 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
+            className="px-8 py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-sm shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
           >
             Start Exploring
           </NavLink>
           <NavLink
             to="/search"
-            className="px-8 py-3.5 rounded-xl border border-neutral-800 bg-neutral-900/80 text-neutral-200 font-semibold text-sm hover:bg-neutral-800 hover:text-white hover:border-neutral-700 active:scale-[0.98] transition-all duration-200 backdrop-blur-md"
+            className="px-8 py-3.5 rounded-xl border border-neutral-800 bg-neutral-900 text-neutral-200 font-semibold text-sm hover:bg-neutral-800 hover:text-white hover:border-neutral-700 active:scale-[0.98] transition-all duration-200"
           >
             Search Titles
           </NavLink>
@@ -102,7 +89,7 @@ function Land() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <HiOutlineFire className="text-amber-500 text-2xl" />
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-neutral-100">
+            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
               Trending Now
             </h2>
           </div>
@@ -134,7 +121,7 @@ function Land() {
             ? [...Array(6)].map((_, i) => (
                 <div
                   key={i}
-                  className="w-[160px] sm:w-[190px] aspect-[2/3] shrink-0 rounded-xl bg-neutral-900 border border-neutral-800/80 animate-pulse"
+                  className="w-[160px] sm:w-[190px] aspect-[2/3] shrink-0 rounded-xl bg-neutral-900 border border-neutral-800 animate-pulse"
                 />
               ))
             : trending.map((anime) => (
@@ -157,12 +144,12 @@ function Land() {
       
       <section className="max-w-7xl mx-auto px-6 py-10 w-full relative z-10">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-neutral-100">
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
             Browse by Genre
           </h2>
           <NavLink
             to="/search"
-            className="text-xs font-semibold text-amber-400 hover:text-amber-300 transition"
+            className="text-xs font-semibold text-amber-500 hover:text-amber-400 transition"
           >
             View All &rarr;
           </NavLink>
@@ -179,10 +166,10 @@ function Land() {
                     `/search?genre=${encodeURIComponent(g.name.toLowerCase())}`
                   )
                 }
-                className="flex flex-col items-center justify-center p-4 rounded-xl bg-neutral-900/70 border border-neutral-800/80 hover:border-amber-500/40 hover:bg-neutral-800/60 hover:-translate-y-1 transition duration-200 group backdrop-blur-sm"
+                className="flex flex-col items-center justify-center p-4 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-amber-500 hover:bg-neutral-800 hover:-translate-y-1 transition duration-200 group"
               >
-                <IconComponent className="text-2xl mb-2 text-neutral-400 group-hover:text-amber-400 group-hover:scale-110 transition-all" />
-                <span className="text-xs font-semibold text-neutral-300 group-hover:text-amber-400 transition-colors">
+                <IconComponent className="text-2xl mb-2 text-neutral-400 group-hover:text-amber-500 group-hover:scale-110 transition-all" />
+                <span className="text-xs font-semibold text-neutral-300 group-hover:text-amber-500 transition-colors">
                   {g.name}
                 </span>
               </button>
@@ -192,10 +179,10 @@ function Land() {
       </section>
 
       
-      <footer className="w-full border-t border-neutral-800/80 bg-neutral-950 py-12 mt-16 text-neutral-400 text-xs relative z-10">
+      <footer className="w-full border-t border-neutral-800 bg-neutral-950 py-12 mt-16 text-neutral-400 text-xs relative z-10">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="space-y-1 text-center md:text-left">
-            <span className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-red-500">
+            <span className="text-xl font-black text-amber-500">
               AnimeVerse
             </span>
             <p className="text-neutral-500 text-xs">
@@ -204,16 +191,16 @@ function Land() {
           </div>
 
           <div className="flex flex-wrap justify-center gap-6 text-neutral-400 font-medium">
-            <Link to="/home" className="hover:text-amber-400 transition">
+            <Link to="/home" className="hover:text-amber-500 transition">
               Airing
             </Link>
-            <Link to="/search" className="hover:text-amber-400 transition">
+            <Link to="/search" className="hover:text-amber-500 transition">
               Search
             </Link>
-            <Link to="/top" className="hover:text-amber-400 transition">
+            <Link to="/top" className="hover:text-amber-500 transition">
               Top Rated
             </Link>
-            <Link to="/watchlist" className="hover:text-amber-400 transition">
+            <Link to="/watchlist" className="hover:text-amber-500 transition">
               Watchlist
             </Link>
           </div>

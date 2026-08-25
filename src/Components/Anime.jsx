@@ -188,12 +188,12 @@ function Anime() {
         <div className="flex gap-3 mt-6">
           <button
             onClick={() => window.location.reload()}
-            className="px-5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-neutral-950 font-bold text-xs rounded-xl shadow-lg shadow-amber-500/10 hover:opacity-95 transition"
+            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs rounded-xl shadow-md transition"
           >
             Try Again
           </button>
           <Link
-            to="/home"
+            to="/"
             className="px-5 py-2.5 bg-neutral-900 border border-neutral-800 text-neutral-300 font-semibold text-xs rounded-xl hover:bg-neutral-800 transition"
           >
             Back to Home
@@ -212,8 +212,7 @@ function Anime() {
   const poster = anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url;
 
   return (
-    <div id="anime" className="min-h-screen bg-neutral-950 text-white relative overflow-hidden pb-20">
-      {/* Toast Notification */}
+    <div id="anime" className="min-h-screen bg-neutral-950 text-white pb-20">
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-amber-500 text-neutral-950 font-bold px-4 py-2.5 rounded-xl shadow-2xl animate-fade-in text-xs flex items-center gap-2">
           <HiCheck className="w-4 h-4 stroke-[3]" />
@@ -221,42 +220,30 @@ function Anime() {
         </div>
       )}
 
-      {/* Blurred Backdrop Poster Banner */}
-      <div className="absolute top-0 left-0 right-0 h-[480px] overflow-hidden opacity-25 pointer-events-none">
-        <img
-          src={poster}
-          alt={anime.title}
-          className="w-full h-full object-cover blur-3xl scale-125"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-neutral-950/80 to-neutral-950" />
-      </div>
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-10 relative z-10">
-        {/* Navigation Breadcrumb */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-8">
         <div className="flex items-center gap-2 text-xs font-medium text-neutral-400 mb-6">
-          <Link to="/home" className="hover:text-amber-400 transition">Home</Link>
+          <Link to="/" className="hover:text-amber-500 transition">Home</Link>
           <span>/</span>
           <span className="text-neutral-200 truncate max-w-xs">{anime.title}</span>
         </div>
 
-        {/* Hero Section */}
+       
         <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
-          {/* Left Poster & Bookmark Action */}
           <div className="shrink-0 relative group">
-            <div className="w-[220px] sm:w-[260px] md:w-[280px] aspect-[2/3] rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-2xl">
+            <div className="w-[220px] sm:w-[260px] md:w-[280px] aspect-[2/3] rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-xl">
               <img
                 src={poster}
                 alt={anime.title}
-                className="w-full h-full object-cover transition duration-500 group-hover:scale-105"
+                className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
               />
             </div>
 
             <button
               onClick={toggleBookmark}
-              className={`w-full mt-3.5 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-xs transition active:scale-95 shadow-lg ${
+              className={`w-full mt-3.5 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-xs transition active:scale-95 shadow-md ${
                 isBookmarked
-                  ? "bg-amber-500/15 border border-amber-500/40 text-amber-400 hover:bg-amber-500/25"
-                  : "bg-gradient-to-r from-amber-500 to-orange-600 text-neutral-950 hover:opacity-95 shadow-amber-500/10"
+                  ? "bg-neutral-900 border border-amber-500 text-amber-500 hover:bg-neutral-850"
+                  : "bg-amber-500 hover:bg-amber-400 text-neutral-950"
               }`}
             >
               {isBookmarked ? (
@@ -273,7 +260,7 @@ function Anime() {
             </button>
           </div>
 
-          {/* Right Anime Information */}
+          
           <div className="flex-1 text-center md:text-left">
             {anime.title_japanese && (
               <p className="text-xs font-semibold text-neutral-500 tracking-wider mb-1">
@@ -281,15 +268,15 @@ function Anime() {
               </p>
             )}
 
-            <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-red-500">
+            <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-tight text-white">
               {anime.title}
             </h1>
 
-            {/* Badges */}
+            
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 mt-4">
               {anime.score && anime.score !== "N/A" && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold text-xs">
-                  <FaStar className="text-amber-400 text-xs" />
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-amber-500 font-bold text-xs">
+                  <FaStar className="text-amber-500 text-xs" />
                   <span>{anime.score}</span>
                 </div>
               )}
@@ -313,7 +300,7 @@ function Anime() {
               )}
             </div>
 
-            {/* Synopsis */}
+            
             <div className="mt-6">
               <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-2">
                 Overview
@@ -325,14 +312,14 @@ function Anime() {
               {anime.synopsis && anime.synopsis.length > 280 && (
                 <button
                   onClick={() => setExpanded(!expanded)}
-                  className="text-amber-400 hover:text-amber-300 text-xs font-semibold mt-2 transition inline-block"
+                  className="text-amber-500 hover:text-amber-400 text-xs font-semibold mt-2 transition inline-block"
                 >
                   {expanded ? "Show Less ↑" : "Read More ↓"}
                 </button>
               )}
             </div>
 
-            {/* Genre Tags */}
+            
             {anime.genres && anime.genres.length > 0 && (
               <div className="mt-6">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-2.5">
@@ -342,7 +329,7 @@ function Anime() {
                   {anime.genres.map((g, idx) => (
                     <span
                       key={idx}
-                      className="px-3 py-1 bg-neutral-900/80 border border-neutral-800 text-neutral-300 text-xs font-medium rounded-lg"
+                      className="px-3 py-1 bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs font-medium rounded-lg"
                     >
                       {g.name}
                     </span>
@@ -353,8 +340,8 @@ function Anime() {
           </div>
         </div>
 
-        {/* Information Grid */}
-        <div className="mt-12 p-6 sm:p-8 rounded-2xl bg-neutral-900/40 border border-neutral-800/80 backdrop-blur-xl">
+        
+        <div className="mt-12 p-6 sm:p-8 rounded-2xl bg-neutral-900 border border-neutral-800">
           <h2 className="text-sm font-bold uppercase tracking-widest text-neutral-400 mb-6">
             Information
           </h2>
@@ -379,10 +366,10 @@ function Anime() {
           </div>
         </div>
 
-        {/* Characters Section */}
+        
         <div className="mt-12">
-          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-neutral-100 mb-6 flex items-center gap-2">
-            <HiOutlineUsers className="text-amber-400 text-2xl" />
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white mb-6 flex items-center gap-2">
+            <HiOutlineUsers className="text-amber-500 text-2xl" />
             <span>Main Characters</span>
           </h2>
 
@@ -391,15 +378,15 @@ function Anime() {
               {characters.map((char) => (
                 <div
                   key={char.id || char.name}
-                  className="flex items-center gap-3.5 p-3 rounded-xl bg-neutral-900/50 border border-neutral-800/80 hover:border-neutral-700 hover:bg-neutral-800/50 transition duration-200 group"
+                  className="flex items-center gap-3.5 p-3 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-amber-500 hover:bg-neutral-850 transition duration-200 group"
                 >
                   <img
                     src={char.image || "https://via.placeholder.com/80"}
                     alt={char.name}
-                    className="w-12 h-12 rounded-full object-cover border border-amber-500/30 group-hover:scale-105 transition duration-200 shrink-0"
+                    className="w-12 h-12 rounded-full object-cover border border-neutral-700 group-hover:border-amber-500 transition duration-200 shrink-0"
                   />
                   <div className="min-w-0">
-                    <p className="text-xs sm:text-sm font-bold text-neutral-200 truncate group-hover:text-amber-400 transition-colors">
+                    <p className="text-xs sm:text-sm font-bold text-neutral-200 truncate group-hover:text-amber-500 transition-colors">
                       {char.name}
                     </p>
                     <p className="text-[11px] text-neutral-500 uppercase font-medium mt-0.5">
@@ -410,21 +397,21 @@ function Anime() {
               ))}
             </div>
           ) : (
-            <div className="p-8 rounded-xl bg-neutral-900/30 border border-neutral-800/60 text-center text-neutral-500 text-xs">
+            <div className="p-8 rounded-xl bg-neutral-900 border border-neutral-800 text-center text-neutral-500 text-xs">
               No character information available for this title.
             </div>
           )}
         </div>
 
-        {/* Trailer Section */}
+        
         <div className="mt-12">
-          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-neutral-100 mb-6 flex items-center gap-2">
-            <HiOutlineVideoCamera className="text-amber-400 text-2xl" />
+          <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white mb-6 flex items-center gap-2">
+            <HiOutlineVideoCamera className="text-amber-500 text-2xl" />
             <span>Official Trailer</span>
           </h2>
 
           {trailerUrl ? (
-            <div className="relative aspect-video w-full max-w-4xl mx-auto rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-2xl">
+            <div className="relative aspect-video w-full max-w-4xl mx-auto rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-xl">
               <iframe
                 src={trailerUrl}
                 title={`${anime.title} Trailer`}
@@ -434,7 +421,7 @@ function Anime() {
               />
             </div>
           ) : (
-            <div className="p-8 rounded-xl bg-neutral-900/30 border border-neutral-800/60 text-center text-neutral-500 text-xs">
+            <div className="p-8 rounded-xl bg-neutral-900 border border-neutral-800 text-center text-neutral-500 text-xs">
               No official promotional video available.
             </div>
           )}

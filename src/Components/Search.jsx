@@ -64,7 +64,7 @@ function Search() {
 
   useEffect(() => {
     if (genreParam) {
-      setQuery(""); 
+      setQuery("");
       setActiveSearch({ term: genreParam, isGenre: true });
       setCurrentPage(1);
       fetchSearchData(genreParam, true, 1);
@@ -92,13 +92,11 @@ function Search() {
   };
 
   return (
-    <div id="search" className="min-h-screen bg-neutral-950 text-white px-4 sm:px-8 md:px-12 py-8 relative overflow-hidden">
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[250px] bg-amber-500/10 blur-[130px] rounded-full pointer-events-none" />
-
-      <div className="max-w-7xl mx-auto relative z-10">
+    <div id="search" className="min-h-screen bg-neutral-950 text-white px-4 sm:px-8 md:px-12 py-8">
+      <div className="max-w-7xl mx-auto">
         <div className="text-center max-w-xl mx-auto mb-10">
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-orange-500 to-red-500">
-            Search Anime
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+            Search <span className="text-amber-500">Anime</span>
           </h1>
           <p className="text-xs sm:text-sm text-neutral-400 mt-2">
             Find details, characters, and trailers for thousands of titles
@@ -125,12 +123,12 @@ function Search() {
                 placeholder="Search by title (e.g. Naruto, Bleach)..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 rounded-xl bg-neutral-900/90 border border-neutral-800 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500/80 focus:ring-2 focus:ring-amber-500/20 transition backdrop-blur-md"
+                className="w-full pl-11 pr-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition"
               />
             </div>
             <button
               type="submit"
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-neutral-950 font-bold text-sm shadow-lg shadow-amber-500/10 hover:opacity-95 active:scale-95 transition"
+              className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-sm shadow-md active:scale-95 transition"
             >
               Search
             </button>
@@ -141,9 +139,9 @@ function Search() {
           <div className="flex items-center justify-between border-b border-neutral-800 pb-3 mb-8">
             <p className="text-sm text-neutral-300">
               {activeSearch.isGenre ? "Browsing Category: " : "Search Results for: "}
-              <span className="text-amber-400 font-semibold capitalize">"{activeSearch.term}"</span>
+              <span className="text-amber-500 font-semibold capitalize">"{activeSearch.term}"</span>
             </p>
-            <span className="text-xs font-semibold px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full">
+            <span className="text-xs font-semibold px-3 py-1 bg-neutral-900 text-amber-500 border border-neutral-800 rounded-full">
               Page {currentPage}
             </span>
           </div>
@@ -154,7 +152,7 @@ function Search() {
             {[...Array(12)].map((_, i) => (
               <div
                 key={i}
-                className="w-full aspect-[2/3] max-w-[190px] rounded-xl bg-neutral-900 border border-neutral-800/80 animate-pulse"
+                className="w-full aspect-[2/3] max-w-[190px] rounded-xl bg-neutral-900 border border-neutral-800 animate-pulse"
               />
             ))}
           </div>
@@ -208,7 +206,7 @@ function Search() {
               Previous
             </button>
 
-            <span className="text-sm font-bold text-amber-400 px-3.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-lg">
+            <span className="text-sm font-bold text-amber-500 px-3.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-lg">
               {currentPage}
             </span>
 
@@ -217,7 +215,7 @@ function Search() {
                 setCurrentPage((prev) => prev + 1);
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-neutral-950 font-bold text-sm shadow-md shadow-amber-500/10 hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-sm shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition"
               disabled={!hasNextPage || loading}
             >
               Next

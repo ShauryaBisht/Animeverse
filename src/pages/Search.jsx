@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import Card from "./Card";
+import Card from "../Components/Card";
 
 function Search() {
   const [searchParams, setSearchParams] = useSearchParams();

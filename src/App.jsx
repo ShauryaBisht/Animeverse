@@ -3,13 +3,14 @@ import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
 import { Routes,Route } from 'react-router-dom'
-import Land from './Components/Land'
-import AiringNow from './Components/AiringNow'
-import Top from './Components/Top'
-import Watchlist from './Components/Watchlist'
-import Header from './Components/Header'
-import Search from './Components/Search'
-import Anime from './Components/Anime'
+import Land from './pages/Land'
+import AiringNow from './pages/AiringNow'
+import Top from './pages/Top'
+import Watchlist from './pages/Watchlist'
+import Auth from './pages/Auth'
+import Search from './pages/Search'
+import Anime from './pages/Anime'
+
 
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
     <>
       <Routes>
         <Route path='' element={<Land />} />
+        <Route path='/auth' element={<Auth />}></Route>
         <Route path='/airing' element={<AiringNow />} />
         <Route path="/anime/:id" element={<Anime />} />
         <Route path='/top' element={<Top />} />

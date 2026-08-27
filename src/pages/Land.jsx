@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import Card from "./Card";
+import Card from "../Components/Card";
 
 import { HiOutlineFire } from "react-icons/hi2";
 import { GiBroadsword, GiFloatingGhost } from "react-icons/gi";

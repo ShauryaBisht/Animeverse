@@ -21,40 +21,76 @@ function Search() {
     if (!term || !term.trim()) return;
     setLoading(true);
 
-    const limit = 20;
-    const filterParam = isGenre
-      ? `filter[categories]=${encodeURIComponent(term.toLowerCase().trim())}`
-      : `filter[text]=${encodeURIComponent(term.trim())}`;
+    const limit = 24;
+
+    const graphqlQuery = `
+      query ($page: Int, $perPage: Int, $search: String, $genre: String) {
+        Page(page: $page, perPage: $perPage) {
+          pageInfo {
+            hasNextPage
+            currentPage
+          }
+          media(search: $search, genre: $genre, type: ANIME, isAdult: false, sort: POPULARITY_DESC) {
+            idMal
+            id
+            title {
+              english
+              romaji
+            }
+            status
+            format
+            averageScore
+            episodes
+            coverImage {
+              large
+              extraLarge
+            }
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      page: page,
+      perPage: limit,
+      ...(isGenre ? { genre: term.trim() } : { search: term.trim() }),
+    };
 
     try {
-      const res = await fetch(
-        `https://kitsu.io/api/edge/anime?${filterParam}&page[size]=${limit}&page[number]=${page}`
-      );
-
-      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-
-      const json = await res.json();
-
-      const formatted = (json.data || []).map((item) => ({
-        mal_id: item.id,
-        title: item.attributes.canonicalTitle || item.attributes.titles?.en || "Unknown Title",
-        status: item.attributes.status,
-        type: item.attributes.subtype,
-        images: {
-          jpg: {
-            image_url:
-              item.attributes.posterImage?.large ||
-              item.attributes.posterImage?.original ||
-              item.attributes.posterImage?.small ||
-              "",
-          },
+      const res = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
-      }));
+        body: JSON.stringify({ query: graphqlQuery, variables }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+
+      const { data } = await res.json();
+      const mediaList = data?.Page?.media || [];
+
+      const formatted = mediaList
+        .filter((item) => item.idMal) 
+        .map((item) => ({
+          mal_id: item.idMal,
+          title: item.title.english || item.title.romaji || "Unknown Title",
+          status: item.status ? item.status.replace(/_/g, " ") : "N/A",
+          type: item.format || "TV",
+          score: item.averageScore ? (item.averageScore / 10).toFixed(1) : null,
+          episodes: item.episodes,
+          images: {
+            jpg: {
+              image_url: item.coverImage.extraLarge || item.coverImage.large,
+            },
+          },
+        }));
 
       setResults(formatted);
-      setHasNextPage(Boolean(json.links?.next));
+      setHasNextPage(Boolean(data?.Page?.pageInfo?.hasNextPage));
     } catch (error) {
-      console.error("Search error:", error);
+      console.error("AniList search error:", error);
       setResults([]);
       setHasNextPage(false);
     } finally {
@@ -99,7 +135,7 @@ function Search() {
             Search <span className="text-amber-500">Anime</span>
           </h1>
           <p className="text-xs sm:text-sm text-neutral-400 mt-2">
-            Find details, characters, and trailers for thousands of titles
+            Find details, characters, and trailers across thousands of titles
           </p>
 
           <form onSubmit={handleSearchSubmit} className="mt-6 flex items-center gap-2 max-w-lg mx-auto">
@@ -120,7 +156,7 @@ function Search() {
 
               <input
                 type="text"
-                placeholder="Search by title (e.g. Naruto, Bleach)..."
+                placeholder="Search by title (e.g. Naruto, Bleach, Code Geass)..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full pl-11 pr-4 py-3 rounded-xl bg-neutral-900 border border-neutral-800 text-white placeholder-neutral-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition"
@@ -164,7 +200,8 @@ function Search() {
                 id={anime.mal_id}
                 poster={anime.images?.jpg?.image_url}
                 title={anime.title}
-                year={anime.status}
+                score={anime.score}
+                episodes={anime.episodes}
                 type={anime.type}
               />
             ))}

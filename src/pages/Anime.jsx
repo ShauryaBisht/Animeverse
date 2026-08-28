@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { CiBookmark } from "react-icons/ci";
 import { GoBookmarkFill } from "react-icons/go";
 import { FaStar } from "react-icons/fa";
@@ -9,121 +9,89 @@ import {
   HiOutlineExclamationTriangle,
   HiCheck,
 } from "react-icons/hi2";
+import { useAuth } from "../context/AuthContext";
+import {
+  isAnimeInWatchlist,
+  addToWatchlist,
+  removeFromWatchlist,
+} from "../services/watchlistService";
 
-function Anime() {
+export default function Anime() {
   const { id } = useParams();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
   const [anime, setAnime] = useState(null);
   const [characters, setCharacters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [bookmarkLoading, setBookmarkLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
   useEffect(() => {
     let isMounted = true;
+
+    // Helper to fetch with retry for Jikan (429 Rate Limit / 504 Gateway Timeout)
+    const fetchWithRetry = async (url, retries = 3, delay = 800) => {
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) return await res.json();
+          
+          if (res.status === 429 || res.status === 504) {
+            await new Promise((r) => setTimeout(r, delay * (attempt + 1)));
+            continue;
+          }
+          throw new Error(`HTTP Error: ${res.status}`);
+        } catch (err) {
+          if (attempt === retries) throw err;
+          await new Promise((r) => setTimeout(r, delay * (attempt + 1)));
+        }
+      }
+      return null;
+    };
 
     async function fetchData() {
       setLoading(true);
       setError(null);
 
       try {
-        let data = null;
-        let charList = [];
-
-        try {
-          const jikanRes = await fetch(`https://api.jikan.moe/v4/anime/${id}`);
-          if (jikanRes.ok) {
-            const jikanJson = await jikanRes.json();
-            data = jikanJson.data;
-
-            await new Promise((resolve) => setTimeout(resolve, 500));
-
-            const charRes = await fetch(`https://api.jikan.moe/v4/anime/${id}/characters`);
-            if (charRes.ok) {
-              const charJson = await charRes.json();
-              charList = (charJson.data || [])
-                .filter((c) => c.role === "Main")
-                .map((c) => ({
-                  id: c.character?.mal_id,
-                  name: c.character?.name,
-                  image: c.character?.images?.jpg?.image_url,
-                  role: c.role,
-                }));
-            }
-          }
-        } catch (jikanErr) {
-          console.warn("Jikan fallback to Kitsu...", jikanErr);
-        }
-
-        if (!data) {
-          const kitsuRes = await fetch(
-            `https://kitsu.io/api/edge/anime/${id}?include=categories,producers`
-          );
-          if (!kitsuRes.ok) throw new Error("Unable to retrieve anime details.");
-
-          const kitsuJson = await kitsuRes.json();
-          const attr = kitsuJson.data.attributes;
-          const youtubeId = attr.youtubeVideoId;
-
-          const includedCats = (kitsuJson.included || [])
-            .filter((item) => item.type === "categories")
-            .map((item) => ({ name: item.attributes.title }));
-
-          data = {
-            mal_id: id,
-            title: attr.canonicalTitle || attr.titles?.en || "Unknown Title",
-            synopsis: attr.synopsis || "No synopsis available.",
-            images: {
-              jpg: {
-                large_image_url: attr.posterImage?.large || attr.posterImage?.original || "",
-                image_url: attr.posterImage?.medium || attr.posterImage?.small || "",
-              },
-            },
-            status: attr.status || "N/A",
-            type: attr.subtype || "N/A",
-            episodes: attr.episodeCount || "Unknown",
-            score: attr.averageRating ? (attr.averageRating / 10).toFixed(2) : "N/A",
-            aired: { string: attr.startDate || "N/A" },
-            genres: includedCats,
-            producers: [],
-            title_japanese: attr.titles?.ja_jp || "N/A",
-            trailer: {
-              embed_url: youtubeId ? `https://www.youtube.com/embed/${youtubeId}` : null,
-            },
-          };
-
-          try {
-            const kitsuCharRes = await fetch(
-              `https://kitsu.io/api/edge/anime/${id}/characters?include=character&page[limit]=10`
-            );
-            if (kitsuCharRes.ok) {
-              const kitsuCharJson = await kitsuCharRes.json();
-              const includedCharacters = kitsuCharJson.included || [];
-
-              charList = includedCharacters.map((c) => ({
-                id: c.id,
-                name: c.attributes?.canonicalName || c.attributes?.names?.en || "Unknown",
-                image: c.attributes?.image?.original || c.attributes?.image?.medium || "",
-                role: "Main",
-              }));
-            }
-          } catch (charErr) {
-            console.warn("Could not fetch Kitsu characters:", charErr);
-          }
+        // 1. Fetch Anime Details from Jikan
+        const animeData = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${id}`);
+        if (!animeData?.data) {
+          throw new Error("Anime not found on MyAnimeList.");
         }
 
         if (isMounted) {
-          setAnime(data);
-          setCharacters(charList);
+          setAnime(animeData.data);
+        }
 
-          const savedBookmarks = JSON.parse(localStorage.getItem("bookmarks")) || [];
-          const exists = savedBookmarks.some((b) => (b.id ? b.id == id : b.title === data.title));
-          setIsBookmarked(exists);
+        // 2. Fetch Characters (delayed slightly to respect rate limit)
+        await new Promise((r) => setTimeout(r, 400));
+        const charData = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${id}/characters`);
+        
+        if (isMounted && charData?.data) {
+          const mainChars = charData.data
+            .filter((c) => c.role === "Main")
+            .map((c) => ({
+              id: c.character?.mal_id,
+              name: c.character?.name,
+              image: c.character?.images?.jpg?.image_url,
+              role: c.role,
+            }));
+          setCharacters(mainChars);
         }
       } catch (err) {
         console.error("Fetch error:", err);
-        if (isMounted) setError(err.message || "Failed to load anime details.");
+        if (isMounted) {
+          setError(
+            err.message.includes("429")
+              ? "Rate limit exceeded. Please wait a moment and try again."
+              : "Unable to retrieve anime details."
+          );
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -136,32 +104,60 @@ function Anime() {
     };
   }, [id]);
 
-  const toggleBookmark = () => {
-    if (!anime) return;
-    let savedBookmarks = JSON.parse(localStorage.getItem("bookmarks")) || [];
-
-    if (!isBookmarked) {
-      savedBookmarks.push({
-        id: id || anime.mal_id,
-        title: anime.title,
-        year: anime.status,
-        poster: anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url,
-        type: anime.type,
+  // Sync Watchlist Status with Supabase
+  useEffect(() => {
+    let isMounted = true;
+    if (user && id) {
+      isAnimeInWatchlist(Number(id)).then((status) => {
+        if (isMounted) setIsBookmarked(status);
       });
-      localStorage.setItem("bookmarks", JSON.stringify(savedBookmarks));
-      setIsBookmarked(true);
-      showToast("Added to Watchlist");
     } else {
-      savedBookmarks = savedBookmarks.filter((b) => (b.id ? b.id != id : b.title !== anime.title));
-      localStorage.setItem("bookmarks", JSON.stringify(savedBookmarks));
       setIsBookmarked(false);
-      showToast("Removed from Watchlist");
     }
-  };
+    return () => {
+      isMounted = false;
+    };
+  }, [user, id]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(""), 2000);
+  };
+
+  const toggleBookmark = async () => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+
+    if (!anime) return;
+
+    setBookmarkLoading(true);
+    const animeId = Number(id || anime.mal_id);
+
+    try {
+      if (isBookmarked) {
+        await removeFromWatchlist(animeId);
+        setIsBookmarked(false);
+        showToast("Removed from Watchlist");
+      } else {
+        await addToWatchlist({
+          anime_id: animeId,
+          title: anime.title_english || anime.title,
+          image_url: anime.images?.webp?.large_image_url || anime.images?.jpg?.large_image_url,
+          score: anime.score ? parseFloat(anime.score) : null,
+          episodes: typeof anime.episodes === "number" ? anime.episodes : null,
+          type: anime.type,
+          status: "plan_to_watch",
+        });
+        setIsBookmarked(true);
+        showToast("Added to Watchlist");
+      }
+    } catch (err) {
+      console.error("Watchlist toggle failed:", err.message);
+    } finally {
+      setBookmarkLoading(false);
+    }
   };
 
   if (loading) {
@@ -183,7 +179,7 @@ function Anime() {
         </div>
         <h2 className="text-xl font-bold text-neutral-200">{error || "Anime Not Found"}</h2>
         <p className="text-neutral-500 text-sm mt-1 max-w-sm">
-          We couldn't fetch details for this anime ID. It may have been removed or is temporarily unavailable.
+          We couldn't fetch details for this anime ID.
         </p>
         <div className="flex gap-3 mt-6">
           <button
@@ -203,13 +199,16 @@ function Anime() {
     );
   }
 
+  const poster =
+    anime.images?.webp?.large_image_url ||
+    anime.images?.jpg?.large_image_url ||
+    anime.images?.jpg?.image_url;
+
   const trailerUrl =
     anime.trailer?.embed_url ||
     (anime.trailer?.youtube_id
       ? `https://www.youtube.com/embed/${anime.trailer.youtube_id}`
       : null);
-
-  const poster = anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url;
 
   return (
     <div id="anime" className="min-h-screen bg-neutral-950 text-white pb-20">
@@ -224,10 +223,11 @@ function Anime() {
         <div className="flex items-center gap-2 text-xs font-medium text-neutral-400 mb-6">
           <Link to="/" className="hover:text-amber-500 transition">Home</Link>
           <span>/</span>
-          <span className="text-neutral-200 truncate max-w-xs">{anime.title}</span>
+          <span className="text-neutral-200 truncate max-w-xs">
+            {anime.title_english || anime.title}
+          </span>
         </div>
 
-       
         <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
           <div className="shrink-0 relative group">
             <div className="w-[220px] sm:w-[260px] md:w-[280px] aspect-[2/3] rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900 shadow-xl">
@@ -240,13 +240,16 @@ function Anime() {
 
             <button
               onClick={toggleBookmark}
+              disabled={bookmarkLoading}
               className={`w-full mt-3.5 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-xs transition active:scale-95 shadow-md ${
                 isBookmarked
-                  ? "bg-neutral-900 border border-amber-500 text-amber-500 hover:bg-neutral-850"
+                  ? "bg-neutral-900 border border-amber-500 text-amber-500 hover:bg-neutral-800"
                   : "bg-amber-500 hover:bg-amber-400 text-neutral-950"
               }`}
             >
-              {isBookmarked ? (
+              {bookmarkLoading ? (
+                <span>Updating...</span>
+              ) : isBookmarked ? (
                 <>
                   <GoBookmarkFill size={16} />
                   <span>In Watchlist</span>
@@ -260,7 +263,6 @@ function Anime() {
             </button>
           </div>
 
-          
           <div className="flex-1 text-center md:text-left">
             {anime.title_japanese && (
               <p className="text-xs font-semibold text-neutral-500 tracking-wider mb-1">
@@ -269,12 +271,11 @@ function Anime() {
             )}
 
             <h1 className="text-2xl sm:text-3xl md:text-5xl font-black tracking-tight leading-tight text-white">
-              {anime.title}
+              {anime.title_english || anime.title}
             </h1>
 
-            
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-2.5 mt-4">
-              {anime.score && anime.score !== "N/A" && (
+              {anime.score && (
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-amber-500 font-bold text-xs">
                   <FaStar className="text-amber-500 text-xs" />
                   <span>{anime.score}</span>
@@ -300,13 +301,16 @@ function Anime() {
               )}
             </div>
 
-            
             <div className="mt-6">
               <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-2">
                 Overview
               </h3>
-              <p className={`text-neutral-300 text-sm md:text-base leading-relaxed ${expanded ? "" : "line-clamp-4 md:line-clamp-6"}`}>
-                {anime.synopsis}
+              <p
+                className={`text-neutral-300 text-sm md:text-base leading-relaxed ${
+                  expanded ? "" : "line-clamp-4 md:line-clamp-6"
+                }`}
+              >
+                {anime.synopsis || "No synopsis available."}
               </p>
 
               {anime.synopsis && anime.synopsis.length > 280 && (
@@ -319,16 +323,15 @@ function Anime() {
               )}
             </div>
 
-            
             {anime.genres && anime.genres.length > 0 && (
               <div className="mt-6">
                 <h3 className="text-xs font-bold uppercase tracking-widest text-neutral-400 mb-2.5">
                   Genres
                 </h3>
                 <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-                  {anime.genres.map((g, idx) => (
+                  {anime.genres.map((g) => (
                     <span
-                      key={idx}
+                      key={g.mal_id || g.name}
                       className="px-3 py-1 bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs font-medium rounded-lg"
                     >
                       {g.name}
@@ -340,7 +343,6 @@ function Anime() {
           </div>
         </div>
 
-        
         <div className="mt-12 p-6 sm:p-8 rounded-2xl bg-neutral-900 border border-neutral-800">
           <h2 className="text-sm font-bold uppercase tracking-widest text-neutral-400 mb-6">
             Information
@@ -366,7 +368,6 @@ function Anime() {
           </div>
         </div>
 
-        
         <div className="mt-12">
           <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white mb-6 flex items-center gap-2">
             <HiOutlineUsers className="text-amber-500 text-2xl" />
@@ -378,7 +379,7 @@ function Anime() {
               {characters.map((char) => (
                 <div
                   key={char.id || char.name}
-                  className="flex items-center gap-3.5 p-3 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-amber-500 hover:bg-neutral-850 transition duration-200 group"
+                  className="flex items-center gap-3.5 p-3 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-amber-500 hover:bg-neutral-800 transition duration-200 group"
                 >
                   <img
                     src={char.image || "https://via.placeholder.com/80"}
@@ -403,7 +404,6 @@ function Anime() {
           )}
         </div>
 
-        
         <div className="mt-12">
           <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white mb-6 flex items-center gap-2">
             <HiOutlineVideoCamera className="text-amber-500 text-2xl" />
@@ -430,5 +430,3 @@ function Anime() {
     </div>
   );
 }
-
-export default Anime;

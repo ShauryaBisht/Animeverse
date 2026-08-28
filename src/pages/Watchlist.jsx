@@ -1,31 +1,60 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { fetchUserWatchlist, removeFromWatchlist } from "../services/watchlistService";
 import Card from "../Components/Card";
 
 function Watchlist() {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [bookmarks, setBookmarks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem("bookmarks")) || [];
-    setBookmarks(saved);
-  }, []);
+    if (!authLoading && !user) {
+      navigate("/auth");
+      return;
+    }
 
-  const handleRemove = (idOrTitle) => {
-    setBookmarks((prev) => {
-      const updated = prev.filter((item) =>
-        item.id ? item.id !== idOrTitle : item.title !== idOrTitle
-      );
-      localStorage.setItem("bookmarks", JSON.stringify(updated));
-      return updated;
-    });
-  };
+    if (user) {
+      fetchUserWatchlist()
+        .then((data) => setBookmarks(data))
+        .catch((err) => console.error("Failed to load watchlist:", err))
+        .finally(() => setLoading(false));
+    }
+  }, [user, authLoading, navigate]);
 
-  const handleClearAll = () => {
-    if (window.confirm("Are you sure you want to remove all saved anime from your watchlist?")) {
-      localStorage.removeItem("bookmarks");
-      setBookmarks([]);
+  const handleRemove = async (animeId) => {
+    try {
+      await removeFromWatchlist(animeId);
+      setBookmarks((prev) => prev.filter((item) => item.anime_id !== animeId));
+    } catch (err) {
+      console.error("Failed to remove item:", err.message);
     }
   };
+
+  const handleClearAll = async () => {
+    if (window.confirm("Are you sure you want to remove all saved anime from your watchlist?")) {
+      try {
+        await Promise.all(bookmarks.map((item) => removeFromWatchlist(item.anime_id)));
+        setBookmarks([]);
+      } catch (err) {
+        console.error("Failed to clear watchlist:", err.message);
+      }
+    }
+  };
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center text-neutral-400">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm">Loading your watchlist...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="watch" className="min-h-screen bg-neutral-950 text-white px-4 sm:px-8 md:px-12 py-8">
@@ -59,7 +88,12 @@ function Watchlist() {
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-16 h-16 mb-4 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-neutral-600">
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                />
               </svg>
             </div>
             <h2 className="text-lg font-bold text-neutral-200">Your Watchlist is Empty</h2>
@@ -85,13 +119,14 @@ function Watchlist() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 justify-items-center">
             {bookmarks.map((anime) => (
               <Card
-                key={anime.id || anime.title}
-                id={anime.id}
+                key={anime.anime_id}
+                id={anime.anime_id}
                 title={anime.title}
-                year={anime.year}
-                poster={anime.poster}
+                poster={anime.image_url}
+                score={anime.score}
+                episodes={anime.episodes}
                 type={anime.type}
-                onRemove={handleRemove}
+                onRemove={() => handleRemove(anime.anime_id)}
               />
             ))}
           </div>

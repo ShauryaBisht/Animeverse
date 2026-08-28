@@ -90,10 +90,7 @@ export default function Land() {
 
       
       <main className="max-w-7xl mx-auto px-6 pt-24 pb-14 flex flex-col items-center justify-center relative z-10 w-full text-center">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-neutral-900/80 border border-neutral-800/80 text-amber-500 text-xs font-semibold mb-6 shadow-inner backdrop-blur-sm animate-fade-in">
-          <span>✨</span>
-          <span>Explore 10,000+ Anime Series & Movies</span>
-        </div>
+        
 
         <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-tight max-w-4xl text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.9)]">
           Welcome to <span className="text-amber-500">AnimeVerse</span>

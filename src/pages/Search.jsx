@@ -23,6 +23,7 @@ function Search() {
 
     const limit = 24;
 
+    
     const graphqlQuery = `
       query ($page: Int, $perPage: Int, $search: String, $genre: String) {
         Page(page: $page, perPage: $perPage) {

@@ -1,98 +1,119 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { CiBookmark } from "react-icons/ci";
 import { GoBookmarkFill } from "react-icons/go";
+import { useAuth } from "../context/AuthContext";
+import {
+  isAnimeInWatchlist,
+  addToWatchlist,
+  removeFromWatchlist,
+} from "../services/watchlistService";
 
-function Card({ title, year, poster, type, id, handleClick, onRemove }) {
+export default function Card({ id, title, poster, score, episodes, type, year, onRemove }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [isBookmarked, setIsBookmarked] = useState(false);
-  const [showPopup, setShowPopup] = useState(false);
+  const [loading, setLoading] = useState(false);
 
+  const numericId = Number(id);
+
+  
   useEffect(() => {
-    const bookmarks = JSON.parse(localStorage.getItem("bookmarks")) || [];
-    const isBookmarkedAlready = bookmarks.some((b) => (b.id && id ? b.id === id : b.title === title));
-    setIsBookmarked(isBookmarkedAlready);
-  }, [id, title]);
+    let isMounted = true;
+    if (user && numericId && !isNaN(numericId)) {
+      isAnimeInWatchlist(numericId).then((status) => {
+        if (isMounted) setIsBookmarked(status);
+      });
+    } else {
+      setIsBookmarked(false);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [user, numericId]);
 
-  const toggleBookmark = (e) => {
+  const handleBookmarkToggle = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    let bookmarks = JSON.parse(localStorage.getItem("bookmarks")) || [];
-
-    if (!isBookmarked) {
-      if (!bookmarks.find((b) => (b.id && id ? b.id === id : b.title === title))) {
-        bookmarks.push({ id, title, year, poster, type });
-        localStorage.setItem("bookmarks", JSON.stringify(bookmarks));
-        setShowPopup(true);
-        setTimeout(() => setShowPopup(false), 1800);
-      }
-    } else {
-      bookmarks = bookmarks.filter((b) => (b.id && id ? b.id !== id : b.title !== title));
-      localStorage.setItem("bookmarks", JSON.stringify(bookmarks));
-
-      if (onRemove) {
-        onRemove(id || title);
-      }
+    if (!user) {
+      navigate("/auth");
+      return;
     }
 
-    setIsBookmarked(!isBookmarked);
+    if (!numericId || isNaN(numericId) || loading) return;
+
+    setLoading(true);
+    try {
+      if (isBookmarked) {
+        await removeFromWatchlist(numericId);
+        setIsBookmarked(false);
+        if (onRemove) onRemove(numericId);
+      } else {
+        await addToWatchlist({
+          anime_id: numericId,
+          title: title || "Untitled",
+          image_url: poster || null,
+          score: score && !isNaN(Number(score)) ? Number(score) : null,
+          episodes: typeof episodes === "number" ? episodes : null,
+          type: type || null,
+          status: "plan_to_watch",
+        });
+        setIsBookmarked(true);
+      }
+    } catch (err) {
+      console.error("Card bookmark toggle failed:", err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Link
-      to={`/anime/${id}`}
-      onClick={handleClick}
-      className="group relative flex flex-col w-[160px] sm:w-[180px] md:w-[190px] overflow-hidden rounded-xl bg-neutral-900/90 border border-neutral-800/80 hover:border-neutral-700 hover:shadow-2xl hover:shadow-black/60 hover:-translate-y-1.5 transition-all duration-300"
-    >
-      <div className="relative aspect-[2/3] w-full overflow-hidden bg-neutral-950">
-        <img
-          src={poster || "https://via.placeholder.com/300x450"}
-          alt={`Poster of ${title}`}
-          loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
+    <div className="w-full max-w-[200px] bg-[#141414] rounded-2xl p-2.5 transition-all duration-200">
+      <Link to={`/anime/${numericId}`} className="block">
+        
+        <div className="relative aspect-[3/4] w-full rounded-xl overflow-hidden bg-neutral-900">
+          <img
+            src={poster || "https://via.placeholder.com/300x400"}
+            alt={title}
+            loading="lazy"
+            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+          />
 
-        <div className="absolute inset-0 bg-gradient-to-t from-neutral-950/90 via-transparent to-transparent opacity-80" />
-
-        {type && (
-          <span className="absolute top-2.5 left-2.5 rounded-md bg-neutral-950/80 backdrop-blur-md px-2 py-0.5 text-[10px] font-semibold text-neutral-300 border border-neutral-700/50 uppercase tracking-wider">
-            {type}
-          </span>
-        )}
-
-        <button
-          type="button"
-          onClick={toggleBookmark}
-          aria-label={isBookmarked ? "Remove Bookmark" : "Add Bookmark"}
-          className="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-neutral-950/70 backdrop-blur-md border border-neutral-800/80 text-white hover:text-amber-400 hover:scale-110 active:scale-95 transition-all"
-        >
-          {isBookmarked ? (
-            <GoBookmarkFill className="text-amber-400" size={16} />
-          ) : (
-            <CiBookmark className="text-neutral-300" size={16} />
+         
+          {type && (
+            <span className="absolute top-2 left-2 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-md text-[11px] font-bold text-neutral-200 uppercase tracking-wider">
+              {type}
+            </span>
           )}
-        </button>
 
-        {showPopup && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-amber-500 text-neutral-950 px-2.5 py-1 rounded-md text-[11px] font-bold shadow-lg whitespace-nowrap animate-bounce">
-            Saved to Watchlist!
-          </div>
-        )}
-      </div>
+          
+          <button
+            onClick={handleBookmarkToggle}
+            disabled={loading}
+            aria-label="Bookmark"
+            className="absolute top-2 right-2 w-8 h-8 rounded-lg bg-black/70 backdrop-blur-md flex items-center justify-center text-white hover:bg-black/90 transition-colors"
+          >
+            {isBookmarked ? (
+              <GoBookmarkFill className="w-4 h-4 text-amber-500" />
+            ) : (
+              <CiBookmark className="w-4 h-4 stroke-[1.5]" />
+            )}
+          </button>
+        </div>
 
-      <div className="p-3">
-        <h3
-          title={title}
-          className="font-semibold text-xs sm:text-sm text-neutral-100 truncate block group-hover:text-amber-400 transition-colors text-left"
-        >
-          {title}
-        </h3>
-        <p className="text-[11px] text-neutral-400 mt-1 capitalize text-left">
-          {year || "Airing"}
-        </p>
-      </div>
-    </Link>
+        
+        <div className="pt-3 pb-1 px-1">
+          <h3 className="text-[15px] font-bold text-white tracking-tight leading-snug line-clamp-1 hover:text-amber-500 transition-colors">
+            {title}
+          </h3>
+          {(year || episodes) && (
+            <p className="text-xs text-neutral-400 font-medium mt-1">
+              {year || (episodes ? `${episodes} Episodes` : "")}
+            </p>
+          )}
+        </div>
+      </Link>
+    </div>
   );
 }
-
-export default Card;

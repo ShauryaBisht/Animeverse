@@ -18,7 +18,7 @@ import {
 
 export default function Anime() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [anime, setAnime] = useState(null);
@@ -30,48 +30,58 @@ export default function Anime() {
   const [bookmarkLoading, setBookmarkLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
+  const numericAnimeId = Number(id);
+
+  // Helper to fetch with retry
+  const fetchWithRetry = async (url, retries = 2, delay = 800) => {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        const res = await fetch(url);
+        if (res.ok) return await res.json();
+        if (res.status === 429 || res.status === 504) {
+          await new Promise((r) => setTimeout(r, delay * (attempt + 1)));
+          continue;
+        }
+        throw new Error(`HTTP Error: ${res.status}`);
+      } catch (err) {
+        if (attempt === retries) throw err;
+        await new Promise((r) => setTimeout(r, delay * (attempt + 1)));
+      }
+    }
+    return null;
+  };
+
+  // Fetch Anime Details
   useEffect(() => {
     let isMounted = true;
 
-    // Helper to fetch with retry for Jikan (429 Rate Limit / 504 Gateway Timeout)
-    const fetchWithRetry = async (url, retries = 3, delay = 800) => {
-      for (let attempt = 0; attempt <= retries; attempt++) {
-        try {
-          const res = await fetch(url);
-          if (res.ok) return await res.json();
-          
-          if (res.status === 429 || res.status === 504) {
-            await new Promise((r) => setTimeout(r, delay * (attempt + 1)));
-            continue;
-          }
-          throw new Error(`HTTP Error: ${res.status}`);
-        } catch (err) {
-          if (attempt === retries) throw err;
-          await new Promise((r) => setTimeout(r, delay * (attempt + 1)));
-        }
-      }
-      return null;
-    };
-
     async function fetchData() {
+      if (!numericAnimeId || isNaN(numericAnimeId)) {
+        setError("Invalid anime ID provided.");
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
 
       try {
-        // 1. Fetch Anime Details from Jikan
-        const animeData = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${id}`);
+        // 1. Fetch Details from Jikan
+        const animeData = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${numericAnimeId}`);
         if (!animeData?.data) {
-          throw new Error("Anime not found on MyAnimeList.");
+          throw new Error("Anime not found.");
         }
 
         if (isMounted) {
           setAnime(animeData.data);
         }
 
-        // 2. Fetch Characters (delayed slightly to respect rate limit)
-        await new Promise((r) => setTimeout(r, 400));
-        const charData = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${id}/characters`);
-        
+        // 2. Fetch Characters
+        await new Promise((r) => setTimeout(r, 300));
+        const charData = await fetchWithRetry(
+          `https://api.jikan.moe/v4/anime/${numericAnimeId}/characters`
+        );
+
         if (isMounted && charData?.data) {
           const mainChars = charData.data
             .filter((c) => c.role === "Main")
@@ -88,7 +98,7 @@ export default function Anime() {
         if (isMounted) {
           setError(
             err.message.includes("429")
-              ? "Rate limit exceeded. Please wait a moment and try again."
+              ? "Rate limit reached. Please refresh in a moment."
               : "Unable to retrieve anime details."
           );
         }
@@ -97,31 +107,42 @@ export default function Anime() {
       }
     }
 
-    if (id) fetchData();
+    fetchData();
 
     return () => {
       isMounted = false;
     };
-  }, [id]);
+  }, [numericAnimeId]);
 
   // Sync Watchlist Status with Supabase
   useEffect(() => {
     let isMounted = true;
-    if (user && id) {
-      isAnimeInWatchlist(Number(id)).then((status) => {
-        if (isMounted) setIsBookmarked(status);
-      });
-    } else {
-      setIsBookmarked(false);
+
+    async function checkStatus() {
+      if (user && numericAnimeId && !isNaN(numericAnimeId)) {
+        try {
+          const status = await isAnimeInWatchlist(numericAnimeId);
+          if (isMounted) setIsBookmarked(status);
+        } catch (err) {
+          console.error("Failed to check watchlist status:", err);
+        }
+      } else {
+        if (isMounted) setIsBookmarked(false);
+      }
     }
+
+    if (!authLoading) {
+      checkStatus();
+    }
+
     return () => {
       isMounted = false;
     };
-  }, [user, id]);
+  }, [user, numericAnimeId, authLoading]);
 
   const showToast = (msg) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(""), 2000);
+    setTimeout(() => setToastMessage(""), 2500);
   };
 
   const toggleBookmark = async () => {
@@ -130,31 +151,38 @@ export default function Anime() {
       return;
     }
 
-    if (!anime) return;
+    if (!anime || !numericAnimeId || isNaN(numericAnimeId)) return;
 
     setBookmarkLoading(true);
-    const animeId = Number(id || anime.mal_id);
 
     try {
       if (isBookmarked) {
-        await removeFromWatchlist(animeId);
+        await removeFromWatchlist(numericAnimeId);
         setIsBookmarked(false);
         showToast("Removed from Watchlist");
       } else {
-        await addToWatchlist({
-          anime_id: animeId,
-          title: anime.title_english || anime.title,
-          image_url: anime.images?.webp?.large_image_url || anime.images?.jpg?.large_image_url,
-          score: anime.score ? parseFloat(anime.score) : null,
+        // Build clean payload with strict null checks
+        const payload = {
+          anime_id: numericAnimeId,
+          title: anime.title_english || anime.title || "Untitled",
+          image_url:
+            anime.images?.webp?.large_image_url ||
+            anime.images?.jpg?.large_image_url ||
+            anime.images?.jpg?.image_url ||
+            null,
+          score: anime.score && !isNaN(Number(anime.score)) ? Number(anime.score) : null,
           episodes: typeof anime.episodes === "number" ? anime.episodes : null,
-          type: anime.type,
+          type: anime.type || null,
           status: "plan_to_watch",
-        });
+        };
+
+        await addToWatchlist(payload);
         setIsBookmarked(true);
         showToast("Added to Watchlist");
       }
     } catch (err) {
-      console.error("Watchlist toggle failed:", err.message);
+      console.error("Watchlist action failed:", err);
+      showToast(err.message || "Failed to update watchlist");
     } finally {
       setBookmarkLoading(false);
     }
@@ -221,7 +249,9 @@ export default function Anime() {
 
       <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-8">
         <div className="flex items-center gap-2 text-xs font-medium text-neutral-400 mb-6">
-          <Link to="/" className="hover:text-amber-500 transition">Home</Link>
+          <Link to="/" className="hover:text-amber-500 transition">
+            Home
+          </Link>
           <span>/</span>
           <span className="text-neutral-200 truncate max-w-xs">
             {anime.title_english || anime.title}
@@ -329,9 +359,9 @@ export default function Anime() {
                   Genres
                 </h3>
                 <div className="flex flex-wrap gap-2 justify-center md:justify-start">
-                  {anime.genres.map((g) => (
+                  {anime.genres.map((g, idx) => (
                     <span
-                      key={g.mal_id || g.name}
+                      key={g.mal_id || `${g.name}-${idx}`}
                       className="px-3 py-1 bg-neutral-900 border border-neutral-800 text-neutral-300 text-xs font-medium rounded-lg"
                     >
                       {g.name}
@@ -376,9 +406,9 @@ export default function Anime() {
 
           {characters.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {characters.map((char) => (
+              {characters.map((char, idx) => (
                 <div
-                  key={char.id || char.name}
+                  key={char.id || `${char.name}-${idx}`}
                   className="flex items-center gap-3.5 p-3 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-amber-500 hover:bg-neutral-800 transition duration-200 group"
                 >
                   <img

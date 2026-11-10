@@ -1,39 +1,101 @@
 import React, { useState, useEffect } from "react";
 import Card from "../Components/Card";
+import { HiOutlineExclamationTriangle } from "react-icons/hi2";
+
+const ANILIST_URL = "https://graphql.anilist.co";
+
+const TOP_ANIME_QUERY = `
+  query ($page: Int, $perPage: Int) {
+    Page(page: $page, perPage: $perPage) {
+      pageInfo {
+        currentPage
+        hasNextPage
+      }
+      media(type: ANIME, isAdult: false, sort: [SCORE_DESC]) {
+        idMal
+        id
+        title {
+          english
+          romaji
+        }
+        format
+        status
+        averageScore
+        episodes
+        seasonYear
+        coverImage {
+          extraLarge
+          large
+        }
+      }
+    }
+  }
+`;
 
 function Top() {
   const [animes, setAnimes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
+  const [reloadIndex, setReloadIndex] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
+    setError(null);
 
-    fetch(`https://api.jikan.moe/v4/top/anime?filter=bypopularity&page=${currentPage}`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
+    async function fetchData() {
+      try {
+        const res = await fetch(ANILIST_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            query: TOP_ANIME_QUERY,
+            variables: { page: currentPage, perPage: 24 },
+          }),
+        });
+
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+
+        const json = await res.json();
+        const mediaList = json.data?.Page?.media || [];
+        const pageInfo = json.data?.Page?.pageInfo;
+
+        const formatted = mediaList.map((anime) => ({
+          mal_id: anime.idMal || anime.id,
+          title: anime.title?.english || anime.title?.romaji || "Untitled",
+          poster: anime.coverImage?.extraLarge || anime.coverImage?.large,
+          year: anime.seasonYear ? `${anime.seasonYear}` : anime.status,
+          type: anime.format,
+          score: anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null,
+          episodes: anime.episodes,
+        }));
+
         if (isMounted) {
-          setAnimes(data?.data || []);
-          setHasNextPage(data?.pagination?.has_next_page ?? false);
+          setAnimes(formatted);
+          setHasNextPage(Boolean(pageInfo?.hasNextPage));
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error("Error fetching top anime:", err);
-        if (isMounted) setAnimes([]);
-      })
-      .finally(() => {
+        if (isMounted) {
+          setError("Unable to load top anime. Please try again.");
+          setAnimes([]);
+        }
+      } finally {
         if (isMounted) setLoading(false);
-      });
+      }
+    }
+
+    fetchData();
 
     return () => {
       isMounted = false;
     };
-  }, [currentPage]);
+  }, [currentPage, reloadIndex]);
 
   return (
     <div className="min-h-screen bg-neutral-950 text-white px-4 sm:px-8 md:px-12 py-8">
@@ -62,15 +124,28 @@ function Top() {
               />
             ))}
           </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-20 px-4 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-neutral-900 border border-neutral-800 flex items-center justify-center text-amber-500 mb-4 text-2xl">
+              <HiOutlineExclamationTriangle className="w-7 h-7" />
+            </div>
+            <h3 className="text-lg font-bold text-neutral-200">{error}</h3>
+            <button
+              onClick={() => setReloadIndex((v) => v + 1)}
+              className="mt-5 px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-neutral-950 font-bold text-xs rounded-xl shadow-md transition"
+            >
+              Try Again
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6 justify-items-center">
             {animes.map((anime) => (
               <Card
                 key={anime.mal_id}
                 id={anime.mal_id}
-                poster={anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url}
+                poster={anime.images?.jpg?.large_image_url || anime.images?.jpg?.image_url || anime.poster}
                 title={anime.title}
-                year={anime.status}
+                year={anime.year ? `${anime.year}` : anime.status}
                 type={anime.type}
               />
             ))}

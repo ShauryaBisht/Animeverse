@@ -2,6 +2,36 @@ import React, { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import Card from "../Components/Card";
 
+const ANILIST_URL = "https://graphql.anilist.co";
+
+const SEARCH_QUERY = `
+  query ($page: Int, $perPage: Int, $search: String, $genre: String) {
+    Page(page: $page, perPage: $perPage) {
+      pageInfo {
+        hasNextPage
+        currentPage
+      }
+      media(search: $search, genre: $genre, type: ANIME, isAdult: false, sort: POPULARITY_DESC) {
+        idMal
+        id
+        title {
+          english
+          romaji
+        }
+        status
+        format
+        averageScore
+        episodes
+        seasonYear
+        coverImage {
+          large
+          extraLarge
+        }
+      }
+    }
+  }
+`;
+
 function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
   const genreParam = searchParams.get("genre") || "";
@@ -21,77 +51,45 @@ function Search() {
     if (!term || !term.trim()) return;
     setLoading(true);
 
-    const limit = 24;
-
-    
-    const graphqlQuery = `
-      query ($page: Int, $perPage: Int, $search: String, $genre: String) {
-        Page(page: $page, perPage: $perPage) {
-          pageInfo {
-            hasNextPage
-            currentPage
-          }
-          media(search: $search, genre: $genre, type: ANIME, isAdult: false, sort: POPULARITY_DESC) {
-            idMal
-            id
-            title {
-              english
-              romaji
-            }
-            status
-            format
-            averageScore
-            episodes
-            coverImage {
-              large
-              extraLarge
-            }
-          }
-        }
-      }
-    `;
-
     const variables = {
-      page: page,
-      perPage: limit,
+      page,
+      perPage: 24,
       ...(isGenre ? { genre: term.trim() } : { search: term.trim() }),
     };
 
     try {
-      const res = await fetch("https://graphql.anilist.co", {
+      const res = await fetch(ANILIST_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        body: JSON.stringify({ query: graphqlQuery, variables }),
+        body: JSON.stringify({ query: SEARCH_QUERY, variables }),
       });
 
       if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
 
-      const { data } = await res.json();
-      const mediaList = data?.Page?.media || [];
+      const json = await res.json();
+      const mediaList = json.data?.Page?.media || [];
 
-      const formatted = mediaList
-        .filter((item) => item.idMal) 
-        .map((item) => ({
-          mal_id: item.idMal,
-          title: item.title.english || item.title.romaji || "Unknown Title",
-          status: item.status ? item.status.replace(/_/g, " ") : "N/A",
-          type: item.format || "TV",
-          score: item.averageScore ? (item.averageScore / 10).toFixed(1) : null,
-          episodes: item.episodes,
-          images: {
-            jpg: {
-              image_url: item.coverImage.extraLarge || item.coverImage.large,
-            },
+      const formatted = mediaList.map((item) => ({
+        mal_id: item.idMal || item.id,
+        title: item.title?.english || item.title?.romaji || "Unknown Title",
+        status: item.status ? item.status.replace(/_/g, " ") : "N/A",
+        type: item.format || "TV",
+        score: item.averageScore ? (item.averageScore / 10).toFixed(1) : null,
+        episodes: item.episodes,
+        images: {
+          jpg: {
+            image_url: item.coverImage?.extraLarge || item.coverImage?.large,
           },
-        }));
+        },
+      }));
 
       setResults(formatted);
-      setHasNextPage(Boolean(data?.Page?.pageInfo?.hasNextPage));
+      setHasNextPage(Boolean(json.data?.Page?.pageInfo?.hasNextPage));
     } catch (error) {
-      console.error("AniList search error:", error);
+      console.error("Anime search error:", error);
       setResults([]);
       setHasNextPage(false);
     } finally {

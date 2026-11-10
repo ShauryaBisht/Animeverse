@@ -8,6 +8,32 @@ import { IoCompassOutline, IoRocketOutline, IoHeartOutline } from "react-icons/i
 import { FaRegSmile, FaTheaterMasks, FaMagic } from "react-icons/fa";
 import { HiOutlineChevronLeft, HiOutlineChevronRight } from "react-icons/hi";
 
+const ANILIST_URL = "https://graphql.anilist.co";
+
+const TRENDING_QUERY = `
+  query ($perPage: Int) {
+    Page(page: 1, perPage: $perPage) {
+      media(type: ANIME, isAdult: false, sort: [TRENDING_DESC, POPULARITY_DESC]) {
+        idMal
+        id
+        title {
+          english
+          romaji
+        }
+        format
+        status
+        averageScore
+        episodes
+        seasonYear
+        coverImage {
+          extraLarge
+          large
+        }
+      }
+    }
+  }
+`;
+
 const GENRES = [
   { name: "Action", icon: GiBroadsword, id: 1 },
   { name: "Adventure", icon: IoCompassOutline, id: 2 },
@@ -28,30 +54,44 @@ export default function Land() {
   useEffect(() => {
     let isMounted = true;
 
-    const fetchTrending = async (retries = 2) => {
-      for (let i = 0; i <= retries; i++) {
-        try {
-          const res = await fetch("https://api.jikan.moe/v4/top/anime?filter=bypopularity&limit=10");
-          if (res.ok) {
-            const data = await res.json();
-            if (isMounted) {
-              setTrending(data?.data || []);
-              setLoadingTrending(false);
-            }
-            return;
-          }
-          if (res.status === 429 || res.status === 504) {
-            await new Promise((r) => setTimeout(r, 800 * (i + 1)));
-          }
-        } catch (err) {
-          if (i === retries) {
-            console.error("Failed to load trending anime:", err);
-            if (isMounted) setLoadingTrending(false);
-          }
-          await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+    async function fetchTrending() {
+      try {
+        const res = await fetch(ANILIST_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            query: TRENDING_QUERY,
+            variables: { perPage: 10 },
+          }),
+        });
+
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+
+        const json = await res.json();
+        const mediaList = json.data?.Page?.media || [];
+
+        const formatted = mediaList.map((anime) => ({
+          mal_id: anime.idMal || anime.id,
+          title: anime.title?.english || anime.title?.romaji || "Untitled",
+          poster: anime.coverImage?.extraLarge || anime.coverImage?.large,
+          year: anime.seasonYear ? `${anime.seasonYear}` : anime.status,
+          type: anime.format,
+          score: anime.averageScore ? (anime.averageScore / 10).toFixed(1) : null,
+          episodes: anime.episodes,
+        }));
+
+        if (isMounted) {
+          setTrending(formatted);
+          setLoadingTrending(false);
         }
+      } catch (err) {
+        console.error("Failed to load trending anime:", err);
+        if (isMounted) setLoadingTrending(false);
       }
-    };
+    }
 
     fetchTrending();
 
@@ -163,6 +203,7 @@ export default function Land() {
                     id={anime.mal_id}
                     title={anime.title_english || anime.title}
                     poster={
+                      anime.poster ||
                       anime.images?.webp?.large_image_url ||
                       anime.images?.jpg?.large_image_url ||
                       anime.images?.jpg?.image_url

@@ -16,6 +16,71 @@ import {
   removeFromWatchlist,
 } from "../services/watchlistService";
 
+const ANILIST_URL = "https://graphql.anilist.co";
+
+const ANIME_QUERY = `
+  query ($idMal: Int, $id: Int) {
+    Media(idMal: $idMal, id: $id, type: ANIME) {
+      idMal
+      id
+      title {
+        english
+        romaji
+        native
+      }
+      description(asHtml: false)
+      format
+      status
+      episodes
+      averageScore
+      genres
+      seasonYear
+      startDate {
+        year
+        month
+        day
+      }
+      studios(isMain: true) {
+        nodes {
+          name
+        }
+      }
+      trailer {
+        id
+        site
+      }
+      coverImage {
+        extraLarge
+        large
+      }
+      characters(role: MAIN, sort: [ROLE, RELEVANCE], perPage: 16) {
+        edges {
+          role
+          node {
+            id
+            name {
+              full
+            }
+            image {
+              large
+              medium
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+function formatAiredDate(startDate) {
+  if (!startDate || !startDate.year) return "N/A";
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const m = startDate.month ? months[startDate.month - 1] : "";
+  const d = startDate.day ? `${startDate.day}, ` : "";
+  const y = startDate.year;
+  return m ? `${m} ${d}${y}` : `${y}`;
+}
+
 export default function Anime() {
   const { id } = useParams();
   const { user, loading: authLoading } = useAuth();
@@ -32,25 +97,6 @@ export default function Anime() {
 
   const numericAnimeId = Number(id);
 
-  // Helper to fetch with retry
-  const fetchWithRetry = async (url, retries = 2, delay = 800) => {
-    for (let attempt = 0; attempt <= retries; attempt++) {
-      try {
-        const res = await fetch(url);
-        if (res.ok) return await res.json();
-        if (res.status === 429 || res.status === 504) {
-          await new Promise((r) => setTimeout(r, delay * (attempt + 1)));
-          continue;
-        }
-        throw new Error(`HTTP Error: ${res.status}`);
-      } catch (err) {
-        if (attempt === retries) throw err;
-        await new Promise((r) => setTimeout(r, delay * (attempt + 1)));
-      }
-    }
-    return null;
-  };
-
   // Fetch Anime Details
   useEffect(() => {
     let isMounted = true;
@@ -66,41 +112,119 @@ export default function Anime() {
       setError(null);
 
       try {
-        // 1. Fetch Details from Jikan
-        const animeData = await fetchWithRetry(`https://api.jikan.moe/v4/anime/${numericAnimeId}`);
-        if (!animeData?.data) {
+        let media = null;
+
+        // 1. Try querying by MyAnimeList ID
+        try {
+          const res = await fetch(ANILIST_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({
+              query: ANIME_QUERY,
+              variables: { idMal: numericAnimeId },
+            }),
+          });
+          if (res.ok) {
+            const json = await res.json();
+            media = json.data?.Media;
+          }
+        } catch {
+          // If MAL query fails, fallback below
+        }
+
+        // 2. Fallback to AniList ID if MAL query did not resolve
+        if (!media) {
+          const fallbackRes = await fetch(ANILIST_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({
+              query: ANIME_QUERY,
+              variables: { id: numericAnimeId },
+            }),
+          });
+          if (fallbackRes.ok) {
+            const fallbackJson = await fallbackRes.json();
+            media = fallbackJson.data?.Media;
+          }
+        }
+
+        if (!media) {
           throw new Error("Anime not found.");
         }
 
+        const posterUrl =
+          media.coverImage?.extraLarge ||
+          media.coverImage?.large ||
+          "https://via.placeholder.com/300x400";
+        const youtubeId =
+          media.trailer?.site === "youtube" ? media.trailer.id : null;
+
+        const formattedAnime = {
+          mal_id: media.idMal || media.id,
+          title: media.title?.english || media.title?.romaji || "Untitled",
+          title_english: media.title?.english || media.title?.romaji || "Untitled",
+          title_japanese: media.title?.native || null,
+          images: {
+            jpg: {
+              image_url: posterUrl,
+              large_image_url: posterUrl,
+            },
+            webp: {
+              image_url: posterUrl,
+              large_image_url: posterUrl,
+            },
+          },
+          score: media.averageScore
+            ? (media.averageScore / 10).toFixed(1)
+            : null,
+          episodes: media.episodes,
+          type: media.format,
+          status: media.status
+            ? media.status.replace(/_/g, " ").toLowerCase()
+            : "N/A",
+          synopsis: media.description
+            ? media.description
+                .replace(/<[^>]*>/g, "")
+                .replace(/&quot;/g, '"')
+                .replace(/&#039;/g, "'")
+            : "No synopsis available.",
+          genres: (media.genres || []).map((name, idx) => ({
+            mal_id: idx + 1,
+            name,
+          })),
+          aired: { string: formatAiredDate(media.startDate) },
+          producers: [
+            { name: media.studios?.nodes?.[0]?.name || "N/A" },
+          ],
+          trailer: {
+            youtube_id: youtubeId,
+            embed_url: youtubeId
+              ? `https://www.youtube.com/embed/${youtubeId}`
+              : null,
+          },
+        };
+
+        const mainChars = (media.characters?.edges || []).map((edge) => ({
+          id: edge.node?.id,
+          name: edge.node?.name?.full || "Unknown",
+          image: edge.node?.image?.large || edge.node?.image?.medium,
+          role: edge.role || "Main",
+        }));
+
         if (isMounted) {
-          setAnime(animeData.data);
-        }
-
-        // 2. Fetch Characters
-        await new Promise((r) => setTimeout(r, 300));
-        const charData = await fetchWithRetry(
-          `https://api.jikan.moe/v4/anime/${numericAnimeId}/characters`
-        );
-
-        if (isMounted && charData?.data) {
-          const mainChars = charData.data
-            .filter((c) => c.role === "Main")
-            .map((c) => ({
-              id: c.character?.mal_id,
-              name: c.character?.name,
-              image: c.character?.images?.jpg?.image_url,
-              role: c.role,
-            }));
+          setAnime(formattedAnime);
           setCharacters(mainChars);
         }
       } catch (err) {
         console.error("Fetch error:", err);
         if (isMounted) {
-          setError(
-            err.message.includes("429")
-              ? "Rate limit reached. Please refresh in a moment."
-              : "Unable to retrieve anime details."
-          );
+          setError("Unable to retrieve anime details. Please try again.");
         }
       } finally {
         if (isMounted) setLoading(false);
